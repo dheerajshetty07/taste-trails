@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { Upload, Plus, ArrowLeft, ArrowRight, Star, Search, Filter, Download, RotateCcw, MapPin, ExternalLink, Menu, Calendar, X, Check } from 'lucide-react';
+import { Upload, Plus, ArrowLeft, ArrowRight, Star, Search, Filter, Download, RotateCcw, MapPin, ExternalLink, Menu, Calendar, X } from 'lucide-react';
 import type { ReactNode, ChangeEvent } from 'react';
 
 type Screen = 'log' | 'enrich' | 'places' | 'map' | 'wrapped' | 'settings';
@@ -122,9 +122,9 @@ const Modal = ({ isOpen, onClose, title, children }: ModalProps) => {
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-[#FAF8F6] rounded-2xl shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-[#2e241b] rounded-2xl shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
         <div className="p-4 border-b border-[#E0D7CF] flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-[#1C1C1C]">{title}</h2>
+          <h2 className="text-lg font-semibold text-[#ffffff]">{title}</h2>
           <button onClick={onClose} className="p-1 hover:bg-[#E0D7CF]/50 rounded-lg">
             <X size={20} />
           </button>
@@ -175,9 +175,13 @@ const App = () => {
     }
   }, [places]);
 
-  const showToast = (message: string) => {
-    setToast(message);
-  };
+  const showToast = (message: string, duration = 1800) => {
+  setToast(message);
+
+  window.setTimeout(() => {
+    setToast(null);
+  }, duration);
+};
 
   const handleImport = (e: ChangeEvent<HTMLInputElement>) => {
   const file = e.target.files?.[0];
@@ -191,6 +195,21 @@ const App = () => {
       if (typeof raw !== 'string') throw new Error('Invalid file contents');
       const data: unknown = JSON.parse(raw);
 
+      const imported = normalizePlaces(data);
+
+if (imported.length === 0) {
+  showToast('No valid places found in file');
+  return;
+}
+
+if (places.length > 0) {
+  setPendingImport(imported);
+  setShowImportModal(true);
+} else {
+  setPlaces(imported);
+  showToast('Imported successfully');
+}
+
       // ✅ keep your existing normalization logic below this line
       // (we’ll type the normalization in the next step if needed)
 
@@ -198,6 +217,32 @@ const App = () => {
       showToast('Failed to parse JSON file');
     }
   };
+
+  const normalizePlaces = (input: unknown): Place[] => {
+  if (!Array.isArray(input)) return [];
+  return input
+    .filter((x): x is Partial<Place> => typeof x === 'object' && x !== null)
+    .map((x) => ({
+      id: typeof x.id === 'string' ? x.id : generateId(),
+      name: typeof x.name === 'string' ? x.name : 'Untitled',
+      placeType: typeof x.placeType === 'string' ? x.placeType : undefined,
+      cuisine: typeof x.cuisine === 'string' ? x.cuisine : undefined,
+      topItem: typeof x.topItem === 'string' ? x.topItem : undefined,
+      rating: typeof x.rating === 'number' ? x.rating : null,
+      isFavorite: typeof x.isFavorite === 'boolean' ? x.isFavorite : false,
+      price: typeof x.price === 'string' ? x.price : undefined,
+      tags: Array.isArray(x.tags) ? x.tags.filter((t): t is string => typeof t === 'string') : [],
+      notes: typeof x.notes === 'string' ? x.notes : '',
+      city: typeof x.city === 'string' ? x.city : undefined,
+      neighborhood: typeof x.neighborhood === 'string' ? x.neighborhood : undefined,
+      dateVisited: typeof x.dateVisited === 'string' ? x.dateVisited : undefined,
+      mapUrl: typeof x.mapUrl === 'string' ? x.mapUrl : undefined,
+      websiteUrl: typeof x.websiteUrl === 'string' ? x.websiteUrl : undefined,
+      menuUrl: typeof x.menuUrl === 'string' ? x.menuUrl : undefined,
+      createdAt: typeof x.createdAt === 'number' ? x.createdAt : Date.now(),
+      updatedAt: Date.now(),
+    }));
+};
 
   reader.readAsText(file);
   e.target.value = '';
@@ -276,13 +321,6 @@ const deletePlace = (id: string) => {
   }
 };
 
-  const toggleFavorite = (index) => {
-    const updated = [...places];
-    updated[index].isFavorite = !updated[index].isFavorite;
-    updated[index].updatedAt = Date.now();
-    setPlaces(updated);
-  };
-
   // Swipe handling
   const minSwipeDistance = 50;
 
@@ -330,21 +368,29 @@ const onTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
     }
 
     if (filterRating) {
-      result = result.filter(p => p.rating >= parseInt(filterRating));
-    }
+  const min = parseInt(filterRating, 10);
+  result = result.filter((p) => (p.rating ?? 0) >= min);
+}
 
     if (filterFavorites) {
       result = result.filter(p => p.isFavorite);
     }
 
     result.sort((a, b) => {
-      if (sortBy === 'name') return a.name.localeCompare(b.name);
-      if (sortBy === 'rating') return (b.rating || 0) - (a.rating || 0);
-      if (sortBy === 'date')
-        return new Date(b.dateVisited ?? 0).getTime() - new Date(a.dateVisited ?? 0).getTime();
-      if (sortBy === 'updated') return (b.updatedAt || 0) - (a.updatedAt || 0);
-      return 0;
-    });
+  if (sortBy === 'name') return a.name.localeCompare(b.name);
+
+  if (sortBy === 'rating') return (b.rating ?? 0) - (a.rating ?? 0);
+
+  if (sortBy === 'date') {
+    const bTime = b.dateVisited ? new Date(b.dateVisited).getTime() : 0;
+    const aTime = a.dateVisited ? new Date(a.dateVisited).getTime() : 0;
+    return bTime - aTime;
+  }
+
+  if (sortBy === 'updated') return (b.updatedAt ?? 0) - (a.updatedAt ?? 0);
+
+  return 0;
+});
 
     return result;
   }, [places, searchTerm, filterType, filterCuisine, filterRating, filterFavorites, sortBy]);
@@ -357,9 +403,9 @@ const onTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
       return new Date(ts).getFullYear() === 2025;
     });
 
-    const foodPlaces = places2025.filter(p => 
-      ['Restaurant', 'Cafe / Bakery', 'Bar / Cocktails', 'Dessert'].includes(p.placeType)
-    );
+    const foodPlaces = places2025.filter(
+  (p) => ['Restaurant', 'Cafe / Bakery', 'Bar / Cocktails', 'Dessert'].includes(p.placeType ?? '')
+);
     const activities = places2025.filter(p => p.placeType === 'Activity / Sightseeing');
 
     const cuisineCounts: Record<string, number> = {};
@@ -381,15 +427,17 @@ const topCuisines: Array<{ name: string; value: number }> = Object.entries(cuisi
       .filter(p => p.rating === 5)
       .slice(0, 5);
 
-    const priceMap = { '$': 1, '$$': 2, '$$$': 3, '$$$$': 4 };
-    const bestValue = places2025
-      .filter(p => p.rating && p.price && p.placeType !== 'Activity / Sightseeing')
-      .map(p => ({
-        ...p,
-        valueScore: p.rating / priceMap[p.price]
-      }))
-      .sort((a, b) => b.valueScore - a.valueScore)
-      .slice(0, 3);
+    const priceMap: Record<Price, number> = { '$': 1, '$$': 2, '$$$': 3, '$$$$': 4 };
+
+const bestValue = places2025
+  .filter((p) => (p.rating ?? 0) > 0 && typeof p.price === 'string' && p.placeType !== 'Activity / Sightseeing')
+  .map((p) => {
+    const key = p.price as Price;
+    const denom = priceMap[key];
+    return { ...p, valueScore: denom ? (p.rating ?? 0) / denom : 0 };
+  })
+  .sort((a, b) => b.valueScore - a.valueScore)
+  .slice(0, 3);
 
     const tagCounts: Record<string, number> = {};
 places2025.forEach((p) => {
@@ -740,8 +788,12 @@ const topTags: Array<[string, number]> = Object.entries(tagCounts)
 
           <div className="bg-white rounded-2xl p-5 border border-[#E0D7CF] shadow-sm">
             <label className="block text-sm font-semibold text-[#3D2817] mb-3">
-              Rating {form.rating && <span className="text-[#C9A774]">✓ {form.rating} star{form.rating !== 1 ? 's' : ''}</span>}
-            </label>
+  Rating {form.rating != null && (
+    <span className="text-[#C9A774]">
+      ✓ {form.rating} star{form.rating === 1 ? '' : 's'}
+    </span>
+  )}
+</label>
             <div className="flex gap-3 justify-center">
               {[1, 2, 3, 4, 5].map(star => (
                 <button
@@ -750,7 +802,7 @@ const topTags: Array<[string, number]> = Object.entries(tagCounts)
                   onClick={() => setForm({ ...form, rating: star })}
                   className="focus:outline-none transition-transform hover:scale-110 active:scale-95"
                 >
-                  {form.rating >= star ? (
+                  {(form.rating ?? 0) >= star ? (
                     <Star
                       size={44}
                       className="fill-[#D4A574] stroke-[#D4A574]"
@@ -925,7 +977,7 @@ const topTags: Array<[string, number]> = Object.entries(tagCounts)
   // PLACES TAB
   const PlacesTab = () => {
     const [showFilters, setShowFilters] = useState(false);
-    const [selectedPlace, setSelectedPlace] = useState(null);
+    const [selectedPlace, setSelectedPlace] = useState<Place | null>(null);
     const [localSearch, setLocalSearch] = useState(searchTerm);
 
   useEffect(() => {
@@ -1112,22 +1164,28 @@ const topTags: Array<[string, number]> = Object.entries(tagCounts)
                 </div>
               )}
 
-              {selectedPlace.rating && (
-                <div>
-                  <p className="text-sm text-[#C9A774] mb-1">Rating</p>
-                  <div className="flex gap-1">
-                    {[...Array(5)].map((_, i) => (
-                      <Star
-                        key={i}
-                        size={20}
-                        className={i < selectedPlace.rating ? 'fill-[#D4A574] stroke-[#D4A574]' : 'stroke-[#6B5847] fill-transparent'}
-                        strokeWidth={2}
-                      />
-                    ))}
-                  </div>
-                </div>
-              )}
-
+              {selectedPlace.rating != null && (() => {
+  const rating = selectedPlace.rating;
+  return (
+    <div>
+      <p className="text-sm text-[#C9A774] mb-1">Rating</p>
+      <div className="flex gap-1">
+        {[...Array(5)].map((_, i) => (
+          <Star
+            key={i}
+            size={20}
+            className={
+              i < rating
+                ? 'fill-[#D4A574] stroke-[#D4A574]'
+                : 'stroke-[#6B5847] fill-transparent'
+            }
+            strokeWidth={2}
+          />
+        ))}
+      </div>
+    </div>
+  );
+})()}
               {selectedPlace.price && (
                 <div>
                   <p className="text-sm text-[#C9A774] mb-1">Price</p>
@@ -1238,15 +1296,18 @@ const topTags: Array<[string, number]> = Object.entries(tagCounts)
 
   // MAP TAB (simplified list grouped by city)
   const MapTab = () => {
-    const citiesGroup = useMemo(() => {
-      const groups = {};
-      places.forEach(place => {
-        const city = place.city || 'Unknown';
-        if (!groups[city]) groups[city] = [];
-        groups[city].push(place);
-      });
-      return Object.entries(groups).sort((a, b) => a[0].localeCompare(b[0]));
-    }, [places]);
+    const citiesGroup = useMemo((): Array<[string, Place[]]> => {
+  const groups: Record<string, Place[]> = {};
+
+  places.forEach((place) => {
+    const city = (place.city && place.city.trim()) ? place.city : 'Unknown';
+    (groups[city] ??= []).push(place);
+  });
+
+  return (Object.entries(groups) as Array<[string, Place[]]>).sort((a, b) =>
+    a[0].localeCompare(b[0])
+  );
+}, [places]);
 
     return (
       <div className="p-6 pb-24 max-w-4xl mx-auto">
@@ -1308,7 +1369,7 @@ const topTags: Array<[string, number]> = Object.entries(tagCounts)
 
   // WRAPPED TAB
   const WrappedTab = () => {
-    const slideRef = React.useRef(null);
+    const slideRef = useRef<HTMLDivElement | null>(null);
 
     if (wrapped2025.total < 5) {
       return (
@@ -1469,7 +1530,7 @@ const topTags: Array<[string, number]> = Object.entries(tagCounts)
         <div key="vibes" ref={slideRef} className="bg-[#FAF8F6] rounded-3xl p-12 min-h-[600px] flex flex-col items-center justify-center">
           <h2 className="text-3xl font-bold text-[#3D2817] mb-8">Your 2025 Vibes</h2>
           <div className="space-y-4 w-full max-w-md">
-            {wrapped2025.topTags.map(([tag, count], index) => (
+            {wrapped2025.topTags.map(([tag, count], _index) => (
               <div key={tag} className="flex items-center justify-between bg-[#EFEBE7] rounded-2xl p-4 border border-[#E0D7CF]">
                 <span className="text-lg font-semibold text-[#3D2817]">{tag}</span>
                 <span className="text-2xl font-bold text-[#C9A774]">{count}</span>
@@ -1771,13 +1832,13 @@ const topTags: Array<[string, number]> = Object.entries(tagCounts)
 
   // BOTTOM NAV
   const BottomNav = () => {
-    const tabs = [
-      { id: 'log', label: 'Log', icon: Plus },
-      { id: 'places', label: 'Places', icon: Calendar },
-      { id: 'map', label: 'Map', icon: MapPin },
-      { id: 'wrapped', label: 'Wrapped', icon: Star },
-      { id: 'settings', label: 'Settings', icon: Menu }
-    ];
+    const tabs: Array<{ id: Screen; label: string; icon: any }> = [
+  { id: 'log', label: 'Log', icon: Plus },
+  { id: 'places', label: 'Places', icon: Calendar },
+  { id: 'map', label: 'Map', icon: MapPin },
+  { id: 'wrapped', label: 'Wrapped', icon: Star },
+  { id: 'settings', label: 'Settings', icon: Menu },
+];
 
     return (
       <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-r from-[#3D2817] via-[#4A3420] to-[#3D2817] border-t border-[#6B5847] px-4 py-3 shadow-2xl">
