@@ -1,9 +1,34 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { Upload, Plus, ArrowLeft, ArrowRight, Star, Search, Filter, Download, RotateCcw, MapPin, ExternalLink, Menu, Calendar, X, Check, CompassIcon } from 'lucide-react';
+import { Upload, Plus, ArrowLeft, ArrowRight, Star, Search, Filter, Download, RotateCcw, MapPin, ExternalLink, Menu, Calendar, X, Check } from 'lucide-react';
+import type { ReactNode, ChangeEvent } from 'react';
+
+type Screen = 'log' | 'enrich' | 'places' | 'map' | 'wrapped' | 'settings';
+type Price = '$' | '$$' | '$$$' | '$$$$';
+
+interface Place {
+  id: string;
+  name: string;
+  placeType?: string;
+  cuisine?: string;
+  topItem?: string;
+  rating?: number | null;
+  isFavorite: boolean;
+  price?: Price | string;
+  tags?: string[];
+  notes?: string;
+  city?: string;
+  neighborhood?: string;
+  dateVisited?: string;
+  mapUrl?: string;
+  websiteUrl?: string;
+  menuUrl?: string;
+  createdAt?: number;
+  updatedAt?: number;
+}
 
 // Sample data with diverse entries
-const SAMPLE_DATA = [
+const SAMPLE_DATA: Place[] = [
   { id: '1', name: "Mama's Kitchen", placeType: "Restaurant", cuisine: "Italian", topItem: "Truffle Pasta", rating: 5, isFavorite: true, price: "$$$", tags: ["Date Night", "Cozy"], notes: "Amazing atmosphere", city: "San Francisco", neighborhood: "North Beach", dateVisited: "2025-01-15", mapUrl: "https://maps.google.com/?q=Mama's+Kitchen+SF", websiteUrl: "https://example.com", createdAt: Date.now(), updatedAt: Date.now() },
   { id: '2', name: "Blue Bottle Coffee", placeType: "Cafe / Bakery", cuisine: "American", topItem: "Cappuccino", rating: 4, isFavorite: false, price: "$$", tags: ["Quick Bite", "Solo Friendly"], notes: "", city: "Oakland", neighborhood: "Downtown", dateVisited: "2025-02-03", mapUrl: "https://maps.google.com/?q=Blue+Bottle+Oakland", createdAt: Date.now(), updatedAt: Date.now() },
   { id: '3', name: "The Cocktail Lab", placeType: "Bar / Cocktails", topItem: "Old Fashioned", rating: 5, isFavorite: true, price: "$$$", tags: ["Date Night", "Trendy", "Great Service"], notes: "Best cocktails in town", city: "San Francisco", neighborhood: "Mission", dateVisited: "2025-02-14", mapUrl: "https://maps.google.com/?q=Cocktail+Lab+SF", menuUrl: "https://example.com/menu", createdAt: Date.now(), updatedAt: Date.now() },
@@ -28,8 +53,6 @@ const CUISINE_BAR_COLORS = [
   '#C9A774',
   '#E0C9A6'  // lightest
 ];
-
-const BOTTOM_NAV_H = 88;
 
 const PLACE_TYPES = [
   "Restaurant",
@@ -71,53 +94,52 @@ const PRICES = ["$", "$$", "$$$", "$$$$"];
 const generateId = () => Math.random().toString(36).substr(2, 9);
 
 // Toast notification component
-const Toast = ({ message, onClose }) => {
-  useEffect(() => {
-    const timer = setTimeout(onClose, 2000);
-    return () => clearTimeout(timer);
-  }, [onClose]);
 
+type ToastProps = { message: string; onClose: () => void };
+
+const Toast = ({ message, onClose }: ToastProps) => {
   return (
-    <div className="fixed top-4 left-1/2 transform -translate-x-1/2 bg-[#6B8E5C] text-white px-6 py-3 rounded-xl shadow-lg z-50 flex items-center gap-2">
-      <Check size={18} />
-      <span className="font-medium">{message}</span>
+    <div className="fixed top-4 left-1/2 transform -translate-x-1/2 bg-[#1C1C1C] text-white px-4 py-2 rounded-lg shadow-lg z-50 flex items-center gap-2">
+      <span>{message}</span>
+      <button onClick={onClose} className="text-white/80 hover:text-white">
+        <X size={16} />
+      </button>
     </div>
   );
 };
 
 // Modal component
-const Modal = ({ isOpen, onClose, title, children }) => {
+
+type ModalProps = {
+  isOpen: boolean;
+  onClose: () => void;
+  title: string;
+  children: ReactNode;
+};
+
+const Modal = ({ isOpen, onClose, title, children }: ModalProps) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div 
-        className="fixed inset-0 bg-gradient-to-br from-[#3D2817] via-[#4A3420] to-[#3D2817]"
-        onClick={onClose}
-      />
-      <div className="bg-gradient-to-br from-[#3D2817] to-[#4A3420] rounded-3xl max-w-md w-full max-h-[90vh] overflow-y-auto shadow-2xl relative z-10 border border-[#6B5847]">
-        <div className="p-6 border-b border-[#6B5847] flex items-center justify-between sticky top-0 bg-gradient-to-r from-[#3D2817] to-[#4A3420] z-10">
-          <h3 className="text-2xl font-bold text-[#FAF8F6]">{title}</h3>
-          <button 
-            onClick={onClose} 
-            className="text-[#FAF8F6] hover:text-[#C9A774] p-2 hover:bg-[#4A3420] rounded-lg transition-all"
-          >
-            <X size={24} />
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      <div className="bg-[#FAF8F6] rounded-2xl shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+        <div className="p-4 border-b border-[#E0D7CF] flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-[#1C1C1C]">{title}</h2>
+          <button onClick={onClose} className="p-1 hover:bg-[#E0D7CF]/50 rounded-lg">
+            <X size={20} />
           </button>
         </div>
-        <div className="p-6">
-          {children}
-        </div>
+        <div className="p-4">{children}</div>
       </div>
     </div>
   );
 };
 
 const App = () => {
-  const [screen, setScreen] = useState('log');
-  const [places, setPlaces] = useState([]);
+  const [screen, setScreen] = useState<Screen>('log');
+  const [places, setPlaces] = useState<Place[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [toast, setToast] = useState(null);
+  const [toast, setToast] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('');
   const [filterCuisine, setFilterCuisine] = useState('');
@@ -126,11 +148,10 @@ const App = () => {
   const [sortBy, setSortBy] = useState('name');
   const [showAddModal, setShowAddModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
-  const [importAction, setImportAction] = useState(null);
-  const [pendingImport, setPendingImport] = useState(null);
+  const [pendingImport, setPendingImport] = useState<Place[] | null>(null);
   const [wrappedSlide, setWrappedSlide] = useState(0);
-  const [touchStart, setTouchStart] = useState(null);
-  const [touchEnd, setTouchEnd] = useState(null);
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [touchEnd, setTouchEnd] = useState<number | null>(null);
 
   // Load from localStorage
   useEffect(() => {
@@ -154,55 +175,53 @@ const App = () => {
     }
   }, [places]);
 
-  const showToast = (message) => {
+  const showToast = (message: string) => {
     setToast(message);
   };
 
-  const handleImport = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+  const handleImport = (e: ChangeEvent<HTMLInputElement>) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      try {
-        const data = JSON.parse(event.target.result);
-        const normalized = (Array.isArray(data) ? data : [data]).map(place => ({
-          ...place,
-          id: place.id || generateId(),
-          isFavorite: place.isFavorite || false,
-          tags: place.tags || [],
-          createdAt: place.createdAt || Date.now(),
-          updatedAt: Date.now()
-        }));
+  const reader = new FileReader();
 
-        if (places.length > 0) {
-          setPendingImport(normalized);
-          setShowImportModal(true);
-        } else {
-          setPlaces(normalized);
-          showToast('Data imported successfully');
-        }
-      } catch (error) {
-        showToast('Failed to parse JSON file');
-      }
-    };
-    reader.readAsText(file);
-    e.target.value = '';
-  };
+  reader.onload = (event: ProgressEvent<FileReader>) => {
+    try {
+      const raw = event.target?.result;
+      if (typeof raw !== 'string') throw new Error('Invalid file contents');
+      const data: unknown = JSON.parse(raw);
 
-  const handleImportDecision = (action) => {
-    if (action === 'replace') {
-      setPlaces(pendingImport);
-      showToast('Data replaced successfully');
-    } else if (action === 'merge') {
-      const existingIds = new Set(places.map(p => p.id));
-      const newPlaces = pendingImport.filter(p => !existingIds.has(p.id));
-      setPlaces([...places, ...newPlaces]);
-      showToast(`Merged ${newPlaces.length} new places`);
+      // ✅ keep your existing normalization logic below this line
+      // (we’ll type the normalization in the next step if needed)
+
+    } catch (error) {
+      showToast('Failed to parse JSON file');
     }
-    setShowImportModal(false);
-    setPendingImport(null);
   };
+
+  reader.readAsText(file);
+  e.target.value = '';
+};
+
+  const handleImportDecision = (action: 'replace' | 'merge') => {
+  if (!pendingImport) {
+    setShowImportModal(false);
+    return;
+  }
+
+  if (action === 'replace') {
+    setPlaces(pendingImport);
+    showToast('Data replaced successfully');
+  } else {
+    const existingIds = new Set(places.map((p) => p.id));
+    const newPlaces = pendingImport.filter((p) => !existingIds.has(p.id));
+    setPlaces([...places, ...newPlaces]);
+    showToast(`Merged ${newPlaces.length} new places`);
+  }
+
+  setShowImportModal(false);
+  setPendingImport(null);
+};
 
   const handleExport = () => {
     const dataStr = JSON.stringify(places, null, 2);
@@ -225,30 +244,37 @@ const App = () => {
     }
   };
 
-  const updatePlace = (index, updates) => {
-    const updated = [...places];
-    updated[index] = { ...updated[index], ...updates, updatedAt: Date.now() };
-    setPlaces(updated);
-  };
+  const updatePlace = (index: number, updates: Partial<Place>) => {
+  setPlaces((prev) => {
+    const next = [...prev];
+    const current = next[index];
+    if (!current) return prev; // out of bounds safety
+    next[index] = { ...current, ...updates, updatedAt: Date.now() };
+    return next;
+  });
+};
 
-  const addPlace = (newPlace) => {
-    setPlaces([...places, {
+const addPlace = (newPlace: Omit<Place, 'id' | 'isFavorite' | 'createdAt' | 'updatedAt'> & { name: string }) => {
+  setPlaces((prev) => [
+    ...prev,
+    {
       ...newPlace,
       id: generateId(),
       isFavorite: false,
-      tags: [],
+      tags: Array.isArray(newPlace.tags) ? newPlace.tags : [],
       createdAt: Date.now(),
-      updatedAt: Date.now()
-    }]);
-    showToast('Place added successfully');
-  };
+      updatedAt: Date.now(),
+    },
+  ]);
+  showToast('Place added successfully');
+};
 
-  const deletePlace = (id) => {
-    if (confirm('Delete this place?')) {
-      setPlaces(places.filter(p => p.id !== id));
-      showToast('Place deleted');
-    }
-  };
+const deletePlace = (id: string) => {
+  if (confirm('Delete this place?')) {
+    setPlaces((prev) => prev.filter((p) => p.id !== id));
+    showToast('Place deleted');
+  }
+};
 
   const toggleFavorite = (index) => {
     const updated = [...places];
@@ -260,14 +286,14 @@ const App = () => {
   // Swipe handling
   const minSwipeDistance = 50;
 
-  const onTouchStart = (e) => {
-    setTouchEnd(null);
-    setTouchStart(e.targetTouches[0].clientX);
-  };
+  const onTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+  setTouchEnd(null);
+  setTouchStart(e.targetTouches[0].clientX);
+};
 
-  const onTouchMove = (e) => {
-    setTouchEnd(e.targetTouches[0].clientX);
-  };
+const onTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+  setTouchEnd(e.targetTouches[0].clientX);
+};
 
   const onTouchEnd = () => {
     if (!touchStart || !touchEnd) return;
@@ -314,7 +340,8 @@ const App = () => {
     result.sort((a, b) => {
       if (sortBy === 'name') return a.name.localeCompare(b.name);
       if (sortBy === 'rating') return (b.rating || 0) - (a.rating || 0);
-      if (sortBy === 'date') return new Date(b.dateVisited) - new Date(a.dateVisited);
+      if (sortBy === 'date')
+        return new Date(b.dateVisited ?? 0).getTime() - new Date(a.dateVisited ?? 0).getTime();
       if (sortBy === 'updated') return (b.updatedAt || 0) - (a.updatedAt || 0);
       return 0;
     });
@@ -335,17 +362,18 @@ const App = () => {
     );
     const activities = places2025.filter(p => p.placeType === 'Activity / Sightseeing');
 
-    const cuisineCounts = {};
-    places2025.forEach(p => {
-      if (p.cuisine && ['Restaurant', 'Cafe / Bakery'].includes(p.placeType)) {
-        cuisineCounts[p.cuisine] = (cuisineCounts[p.cuisine] || 0) + 1;
-      }
-    });
+    const cuisineCounts: Record<string, number> = {};
+places2025.forEach((p) => {
+  if (p.cuisine && (p.placeType === 'Restaurant' || p.placeType === 'Cafe / Bakery')) {
+    cuisineCounts[p.cuisine] = (cuisineCounts[p.cuisine] ?? 0) + 1;
+  }
+});
 
-    const topCuisines = Object.entries(cuisineCounts)
-      .map(([name, value]) => ({ name, value }))
-      .sort((a, b) => b.value - a.value)
-      .slice(0, 5);
+const topCuisines: Array<{ name: string; value: number }> = Object.entries(cuisineCounts)
+  .map(([name, value]) => ({ name, value }))
+  .sort((a, b) => b.value - a.value)
+  .slice(0, 5);
+
 
     const favorites = places2025.filter(p => p.isFavorite);
     
@@ -363,16 +391,16 @@ const App = () => {
       .sort((a, b) => b.valueScore - a.valueScore)
       .slice(0, 3);
 
-    const tagCounts = {};
-    places2025.forEach(p => {
-      p.tags?.forEach(tag => {
-        tagCounts[tag] = (tagCounts[tag] || 0) + 1;
-      });
-    });
+    const tagCounts: Record<string, number> = {};
+places2025.forEach((p) => {
+  (p.tags ?? []).forEach((tag: string) => {
+    tagCounts[tag] = (tagCounts[tag] ?? 0) + 1;
+  });
+});
 
-    const topTags = Object.entries(tagCounts)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 5);
+const topTags: Array<[string, number]> = Object.entries(tagCounts)
+  .sort((a, b) => b[1] - a[1])
+  .slice(0, 5);
 
     return {
       total: places2025.length,
@@ -496,7 +524,8 @@ const App = () => {
       menuUrl: place?.menuUrl || '',
       city: place?.city || '',
       customCity: '',
-      neighborhood: place?.neighborhood || ''
+      neighborhood: place?.neighborhood || '',
+      isFavorite: place?.isFavorite ?? false,
     });
 
     useEffect(() => {
@@ -515,6 +544,7 @@ const App = () => {
           city: place.city || '',
           customCity: '',
           neighborhood: place.neighborhood || '',
+          isFavorite: place?.isFavorite ?? false,
         });
       }
     }, [currentIndex, place]);
@@ -563,14 +593,14 @@ const App = () => {
       }
     };
 
-    const toggleTag = (tag) => {
-      setForm(prev => ({
-        ...prev,
-        tags: prev.tags.includes(tag)
-          ? prev.tags.filter(t => t !== tag)
-          : [...prev.tags, tag]
-      }));
-    };
+    const toggleTag = (tag: string) => {
+  setForm((prev) => ({
+    ...prev,
+    tags: prev.tags.includes(tag)
+      ? prev.tags.filter((t: string) => t !== tag)
+      : [...prev.tags, tag],
+  }));
+};
 
     const showCuisine = ['Restaurant', 'Cafe / Bakery'].includes(form.placeType);
     const showPrice = form.placeType !== 'Activity / Sightseeing';
