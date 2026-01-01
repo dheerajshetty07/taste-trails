@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { Upload, Plus, ArrowLeft, ArrowRight, Star, Search, Filter, Download, RotateCcw, MapPin, ExternalLink, Menu, Calendar, X, Check, CompassIcon } from 'lucide-react';
+import { Upload, Plus, ArrowLeft, ArrowRight, Star, Search, Filter, Download, RotateCcw, MapPin, ExternalLink, Menu, Calendar, X, Check } from 'lucide-react';
 
 // Sample data with diverse entries
 const SAMPLE_DATA = [
@@ -28,8 +28,6 @@ const CUISINE_BAR_COLORS = [
   '#C9A774',
   '#E0C9A6'  // lightest
 ];
-
-const BOTTOM_NAV_H = 88;
 
 const PLACE_TYPES = [
   "Restaurant",
@@ -70,11 +68,46 @@ const PRICES = ["$", "$$", "$$$", "$$$$"];
 // Utility to generate UUIDs
 const generateId = () => Math.random().toString(36).substr(2, 9);
 
+type PlaceType =
+  | "Restaurant"
+  | "Cafe / Bakery"
+  | "Bar / Cocktails"
+  | "Dessert"
+  | "Activity / Sightseeing";
+
+type Price = "$" | "$$" | "$$$" | "$$$$";
+
+type Place = {
+  id: string;
+  name: string;
+  placeType: PlaceType | string; // keep flexible for imports
+  cuisine?: string;
+  topItem?: string;
+  rating?: number | null;
+  isFavorite?: boolean;
+  price?: Price | string;
+  tags?: string[];
+  notes?: string;
+  city?: string;
+  neighborhood?: string;
+  dateVisited?: string;
+  mapUrl?: string;
+  websiteUrl?: string;
+  menuUrl?: string;
+  createdAt?: number;
+  updatedAt?: number;
+};
+
 // Toast notification component
-const Toast = ({ message, onClose }) => {
+type ToastProps = {
+  message: string;
+  onClose: () => void;
+};
+
+const Toast = ({ message, onClose }: ToastProps) => {
   useEffect(() => {
-    const timer = setTimeout(onClose, 2000);
-    return () => clearTimeout(timer);
+    const timer = window.setTimeout(onClose, 2000);
+    return () => window.clearTimeout(timer);
   }, [onClose]);
 
   return (
@@ -86,51 +119,54 @@ const Toast = ({ message, onClose }) => {
 };
 
 // Modal component
-const Modal = ({ isOpen, onClose, title, children }) => {
+type ModalProps = {
+  isOpen: boolean;
+  onClose: () => void;
+  title: string;
+  children: React.ReactNode;
+};
+
+const Modal = ({ isOpen, onClose, title, children }: ModalProps) => {
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div 
+      <div
         className="fixed inset-0 bg-gradient-to-br from-[#3D2817] via-[#4A3420] to-[#3D2817]"
         onClick={onClose}
       />
       <div className="bg-gradient-to-br from-[#3D2817] to-[#4A3420] rounded-3xl max-w-md w-full max-h-[90vh] overflow-y-auto shadow-2xl relative z-10 border border-[#6B5847]">
         <div className="p-6 border-b border-[#6B5847] flex items-center justify-between sticky top-0 bg-gradient-to-r from-[#3D2817] to-[#4A3420] z-10">
           <h3 className="text-2xl font-bold text-[#FAF8F6]">{title}</h3>
-          <button 
-            onClick={onClose} 
+          <button
+            onClick={onClose}
             className="text-[#FAF8F6] hover:text-[#C9A774] p-2 hover:bg-[#4A3420] rounded-lg transition-all"
           >
             <X size={24} />
           </button>
         </div>
-        <div className="p-6">
-          {children}
-        </div>
+        <div className="p-6">{children}</div>
       </div>
     </div>
   );
 };
 
-const App = () => {
-  const [screen, setScreen] = useState('log');
-  const [places, setPlaces] = useState([]);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [toast, setToast] = useState(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterType, setFilterType] = useState('');
-  const [filterCuisine, setFilterCuisine] = useState('');
-  const [filterRating, setFilterRating] = useState('');
-  const [filterFavorites, setFilterFavorites] = useState(false);
-  const [sortBy, setSortBy] = useState('name');
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [showImportModal, setShowImportModal] = useState(false);
-  const [importAction, setImportAction] = useState(null);
-  const [pendingImport, setPendingImport] = useState(null);
-  const [wrappedSlide, setWrappedSlide] = useState(0);
-  const touchStartX  = useRef(null);
-  const touchEndX = useRef(null);
+const [screen, setScreen] = useState<'log' | 'enrich' | 'places' | 'map' | 'wrapped' | 'settings'>('log');
+const [places, setPlaces] = useState<Place[]>([]);
+const [currentIndex, setCurrentIndex] = useState<number>(0);
+const [toast, setToast] = useState<string | null>(null);
+const [searchTerm, setSearchTerm] = useState<string>('');
+const [filterType, setFilterType] = useState<string>('');
+const [filterCuisine, setFilterCuisine] = useState<string>('');
+const [filterRating, setFilterRating] = useState<string>('');
+const [filterFavorites, setFilterFavorites] = useState<boolean>(false);
+const [sortBy, setSortBy] = useState<'name' | 'rating' | 'date' | 'updated'>('name');
+const [showAddModal, setShowAddModal] = useState<boolean>(false);
+const [showImportModal, setShowImportModal] = useState<boolean>(false);
+const [pendingImport, setPendingImport] = useState<Place[] | null>(null);
+const [wrappedSlide, setWrappedSlide] = useState<number>(0);
+const touchStartX = useRef<number | null>(null);
+const touchEndX = useRef<number | null>(null);
 
   // Load from localStorage
   useEffect(() => {
@@ -158,37 +194,46 @@ const App = () => {
     setToast(message);
   };
 
-  const handleImport = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      try {
-        const data = JSON.parse(event.target.result);
-        const normalized = (Array.isArray(data) ? data : [data]).map(place => ({
-          ...place,
-          id: place.id || generateId(),
-          isFavorite: place.isFavorite || false,
-          tags: place.tags || [],
-          createdAt: place.createdAt || Date.now(),
-          updatedAt: Date.now()
-        }));
+  const reader = new FileReader();
 
-        if (places.length > 0) {
-          setPendingImport(normalized);
-          setShowImportModal(true);
-        } else {
-          setPlaces(normalized);
-          showToast('Data imported successfully');
-        }
-      } catch (error) {
-        showToast('Failed to parse JSON file');
+  reader.onload = () => {
+    try {
+      const text = typeof reader.result === 'string' ? reader.result : '';
+      if (!text) {
+        showToast('Failed to read file');
+        return;
       }
-    };
-    reader.readAsText(file);
-    e.target.value = '';
+
+      const data = JSON.parse(text);
+
+      const normalized: Place[] = (Array.isArray(data) ? data : [data]).map((place: Partial<Place>) => ({
+        ...place,
+        id: place.id ?? generateId(),
+        isFavorite: place.isFavorite ?? false,
+        tags: place.tags ?? [],
+        createdAt: place.createdAt ?? Date.now(),
+        updatedAt: Date.now(),
+      })) as Place[];
+
+      if (places.length > 0) {
+        setPendingImport(normalized);
+        setShowImportModal(true);
+      } else {
+        setPlaces(normalized);
+        showToast('Data imported successfully');
+      }
+    } catch {
+      showToast('Failed to parse JSON file');
+    }
   };
+
+  reader.readAsText(file);
+  e.target.value = '';
+};
 
   const handleImportDecision = (action) => {
     if (action === 'replace') {
@@ -493,6 +538,7 @@ const onTouchEnd = () => {
       cuisine: place?.cuisine || '',
       topItem: place?.topItem || '',
       rating: place?.rating || null,
+      isFavorite: place?.isFavorite ?? false,
       price: place?.price || '',
       tags: place?.tags || [],
       notes: place?.notes || '',
@@ -511,6 +557,7 @@ const onTouchEnd = () => {
           cuisine: place.cuisine || '',
           topItem: place.topItem || '',
           rating: place.rating || null,
+          isFavorite: place.isFavorite ?? false,
           price: place.price || '',
           tags: place.tags || [],
           notes: place.notes || '',
@@ -588,7 +635,8 @@ const onTouchEnd = () => {
 
     return (
       <div 
-        className="p-6 pb-60 max-w-2xl mx-auto touch-pan-y"
+        className="p-6 pb-60 max-w-2xl mx-auto touch-pan-y select-none"
+        style={{ touchAction: 'pan-y' }}
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
