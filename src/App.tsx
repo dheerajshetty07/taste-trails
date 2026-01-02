@@ -150,9 +150,6 @@ const App = () => {
   const [showImportModal, setShowImportModal] = useState(false);
   const [pendingImport, setPendingImport] = useState<Place[] | null>(null);
   const [wrappedSlide, setWrappedSlide] = useState(0);
-  const [touchStart, setTouchStart] = useState<number | null>(null);
-  const [touchEnd, setTouchEnd] = useState<number | null>(null);
-  const [swipeEnabled, setSwipeEnabled] = useState(true);
 
   // Load from localStorage
   useEffect(() => {
@@ -320,42 +317,6 @@ const deletePlace = (id: string) => {
     setPlaces((prev) => prev.filter((p) => p.id !== id));
     showToast('Place deleted');
   }
-};
-
-  /// ✅ Prevent swipe navigation from hijacking dropdowns / inputs on mobile
-const minSwipeDistance = 50;
-
-const isInteractiveTarget = (target: EventTarget | null) => {
-  const el = target as HTMLElement | null;
-  if (!el) return false;
-  return Boolean(el.closest('input, textarea, select, option, button, a, label'));
-};
-
-const onTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
-  if (!swipeEnabled) return;
-  if (isInteractiveTarget(e.target)) return;
-
-  setTouchEnd(null);
-  setTouchStart(e.targetTouches[0].clientX);
-};
-
-const onTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
-  if (!swipeEnabled) return;
-  if (isInteractiveTarget(e.target)) return;
-
-  setTouchEnd(e.targetTouches[0].clientX);
-};
-
-const onTouchEnd = () => {
-  if (!swipeEnabled) return;
-  if (touchStart == null || touchEnd == null) return;
-
-  const distance = touchStart - touchEnd;
-  const isLeftSwipe = distance > minSwipeDistance;
-  const isRightSwipe = distance < -minSwipeDistance;
-
-  if (isLeftSwipe && currentIndex < places.length - 1) setCurrentIndex((i) => i + 1);
-  if (isRightSwipe && currentIndex > 0) setCurrentIndex((i) => i - 1);
 };
 
   // Filtered and sorted places
@@ -695,18 +656,7 @@ const wrapped2025 = useMemo(() => {
     else topItemLabel = 'Best Dish';
 
     return (
-  <div
-    className="p-6 pb-60 max-w-2xl mx-auto"
-    onTouchStart={onTouchStart}
-    onTouchMove={onTouchMove}
-    onTouchEnd={onTouchEnd}
-    onFocusCapture={() => setSwipeEnabled(false)}
-    onBlurCapture={() => setSwipeEnabled(true)}
-    onTouchStartCapture={(e) => {
-      if (isInteractiveTarget(e.target)) setSwipeEnabled(false);
-    }}
-    onTouchEndCapture={() => setSwipeEnabled(true)}
-  >
+  <div className="p-6 pb-60 max-w-2xl mx-auto">
         <div className="flex items-center justify-between mb-4">
           <button
             onClick={() => setScreen('log')}
@@ -1009,7 +959,7 @@ const wrapped2025 = useMemo(() => {
               <ArrowRight size={20} />
             </button>
           </div>
-          <p className="text-center text-xs text-[#9B8B7E] mt-2">💡 Swipe left/right to navigate</p>
+          <p className="text-center text-xs text-[#9B8B7E] mt-2"></p>
         </div>
       </div>
     );
@@ -1410,7 +1360,49 @@ const wrapped2025 = useMemo(() => {
 
   // WRAPPED TAB
   const WrappedTab = () => {
-    const slideRef = useRef<HTMLDivElement | null>(null);
+  const slideRef = useRef<HTMLDivElement | null>(null);
+
+  // ✅ Swipe only for Wrapped
+  const startXRef = useRef<number | null>(null);
+  const startYRef = useRef<number | null>(null);
+  const isSwipingRef = useRef(false);
+
+  const MIN_SWIPE_X = 50; // horizontal distance needed
+  const MAX_SWIPE_Y = 30; // ignore if user is scrolling vertically
+
+  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.pointerType === 'mouse') return; // don't swipe with mouse drag
+    startXRef.current = e.clientX;
+    startYRef.current = e.clientY;
+    isSwipingRef.current = true;
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+
+  const onPointerUp = (e: React.PointerEvent<HTMLDivElement>, slidesLength: number) => {
+    if (!isSwipingRef.current) return;
+    isSwipingRef.current = false;
+
+    const startX = startXRef.current;
+    const startY = startYRef.current;
+    if (startX == null || startY == null) return;
+
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+
+    // ignore vertical scroll gestures
+    if (Math.abs(dy) > MAX_SWIPE_Y) return;
+
+    // left swipe = next, right swipe = previous
+    if (dx < -MIN_SWIPE_X) {
+      setWrappedSlide((s) => Math.min(slidesLength - 1, s + 1));
+    } else if (dx > MIN_SWIPE_X) {
+      setWrappedSlide((s) => Math.max(0, s - 1));
+    }
+  };
+
+  const onPointerCancel = () => {
+    isSwipingRef.current = false;
+  };
 
     if (wrapped2025.total < 5) {
       return (
@@ -1599,7 +1591,7 @@ const wrapped2025 = useMemo(() => {
       <div className="p-6 pb-24 max-w-3xl mx-auto">
         <div className="mb-6">
           <h1 className="text-3xl font-bold text-[#3D2817]">Your 2025 Trail</h1>
-          <p className="text-sm text-[#6B5847] mt-1">Swipe or use arrows to navigate slides</p>
+          <p className="text-sm text-[#6B5847] mt-1"></p>
         </div>
 
         <div className="mb-6 flex items-center justify-center gap-2">
@@ -1616,9 +1608,15 @@ const wrapped2025 = useMemo(() => {
           ))}
         </div>
 
-        <div className="overflow-hidden">
-          {slides[wrappedSlide]}
-        </div>
+        <div
+  className="overflow-hidden"
+  style={{ touchAction: 'pan-y' }} // ✅ allow vertical scroll, detect horizontal swipe
+  onPointerDown={onPointerDown}
+  onPointerUp={(e) => onPointerUp(e, slides.length)}
+  onPointerCancel={onPointerCancel}
+>
+  {slides[wrappedSlide]}
+</div>
 
         <div className="mt-6 flex gap-3 justify-center">
           <button
