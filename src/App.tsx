@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { Upload, Plus, ArrowLeft, ArrowRight, Star, Search, Filter, Download, RotateCcw, MapPin, ExternalLink, Menu, Calendar, X } from 'lucide-react';
 import type { ReactNode, ChangeEvent } from 'react';
+import { motion, AnimatePresence } from "framer-motion";
 
 type Screen = 'log' | 'enrich' | 'places' | 'map' | 'wrapped' | 'settings';
 type Price = '$' | '$$' | '$$$' | '$$$$';
@@ -1358,285 +1359,292 @@ const wrapped2025 = useMemo(() => {
     );
   };
 
-  // WRAPPED TAB
-  const WrappedTab = () => {
-  const slideRef = useRef<HTMLDivElement | null>(null);
+  // WRAPPED TAB (Tinder-style swipe)
+const WrappedTab = () => {
+  const [direction, setDirection] = useState(0);
 
-  // ✅ Swipe only for Wrapped
-  const startXRef = useRef<number | null>(null);
-  const startYRef = useRef<number | null>(null);
-  const isSwipingRef = useRef(false);
-
-  const MIN_SWIPE_X = 50; // horizontal distance needed
-  const MAX_SWIPE_Y = 30; // ignore if user is scrolling vertically
-
-  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (e.pointerType === 'mouse') return; // don't swipe with mouse drag
-    startXRef.current = e.clientX;
-    startYRef.current = e.clientY;
-    isSwipingRef.current = true;
-    e.currentTarget.setPointerCapture(e.pointerId);
+  // Card animation variants
+  const cardVariants = {
+    enter: (dir: number) => ({
+      x: dir > 0 ? 320 : -320,
+      opacity: 0,
+      scale: 0.98,
+    }),
+    center: {
+      x: 0,
+      opacity: 1,
+      scale: 1,
+    },
+    exit: (dir: number) => ({
+      x: dir < 0 ? 320 : -320,
+      opacity: 0,
+      scale: 0.98,
+    }),
   };
 
-  const onPointerUp = (e: React.PointerEvent<HTMLDivElement>, slidesLength: number) => {
-    if (!isSwipingRef.current) return;
-    isSwipingRef.current = false;
+  const swipeConfidenceThreshold = 10000;
+  const swipePower = (offset: number, velocity: number) => Math.abs(offset) * velocity;
 
-    const startX = startXRef.current;
-    const startY = startYRef.current;
-    if (startX == null || startY == null) return;
+  // Slides (same content you already had)
+  const slides = [
+    // Slide 0: Hero
+    <div key="hero" className="bg-[#FAF8F6] rounded-3xl p-12 text-center min-h-[600px] flex flex-col items-center justify-center">
+      <h1 className="text-5xl font-bold text-[#3D2817] mb-4">Your 2025 Trail</h1>
+      <div className="text-8xl font-bold text-[#C9A774] my-8">{wrapped2025.total}</div>
+      <p className="text-2xl text-[#6B5847]">places explored</p>
+    </div>,
 
-    const dx = e.clientX - startX;
-    const dy = e.clientY - startY;
-
-    // ignore vertical scroll gestures
-    if (Math.abs(dy) > MAX_SWIPE_Y) return;
-
-    // left swipe = next, right swipe = previous
-    if (dx < -MIN_SWIPE_X) {
-      setWrappedSlide((s) => Math.min(slidesLength - 1, s + 1));
-    } else if (dx > MIN_SWIPE_X) {
-      setWrappedSlide((s) => Math.max(0, s - 1));
-    }
-  };
-
-  const onPointerCancel = () => {
-    isSwipingRef.current = false;
-  };
-
-    if (wrapped2025.total < 5) {
-      return (
-        <div className="p-6 flex items-center justify-center min-h-screen">
-          <div className="text-center max-w-md">
-            <div className="text-6xl mb-4">✨</div>
-            <h2 className="text-2xl font-bold text-[#3D2817] mb-3">Your 2025 Trail Awaits</h2>
-            <p className="text-[#6B5847] mb-2">
-              Log at least 5 places from 2025 to unlock your wrapped recap.
-            </p>
-            <p className="text-sm text-[#9B8B7E] mb-6">
-              Currently logged: {wrapped2025.total} of 5
-            </p>
-            <button
-              onClick={() => setScreen('log')}
-              className="bg-[#3D2817] text-[#FAF8F6] px-8 py-3 rounded-xl font-semibold hover:opacity-90 transition-all"
-            >
-              Start Logging
-            </button>
-          </div>
+    // Slide 1: Balance
+    <div key="balance" className="bg-[#FAF8F6] rounded-3xl p-12 min-h-[600px] flex flex-col items-center justify-center">
+      <h2 className="text-3xl font-bold text-[#3D2817] mb-8">You explored</h2>
+      <div className="flex gap-8 mb-6">
+        <div className="text-center">
+          <div className="text-6xl mb-2">🍽️</div>
+          <div className="text-5xl font-bold text-[#3D2817] mb-1">{wrapped2025.foodCount}</div>
+          <p className="text-[#6B5847] font-medium">Bites & Sips</p>
         </div>
-      );
-    }
-
-    const slides = [
-      // Slide 0: Hero
-      <div key="hero" ref={slideRef} className="bg-[#FAF8F6] rounded-3xl p-12 text-center min-h-[600px] flex flex-col items-center justify-center">
-        <h1 className="text-5xl font-bold text-[#3D2817] mb-4">Your 2025 Trail</h1>
-        <div className="text-8xl font-bold text-[#C9A774] my-8">{wrapped2025.total}</div>
-        <p className="text-2xl text-[#6B5847]">places explored</p>
-      </div>,
-
-      // Slide 1: Balance
-      <div key="balance" ref={slideRef} className="bg-[#FAF8F6] rounded-3xl p-12 min-h-[600px] flex flex-col items-center justify-center">
-        <h2 className="text-3xl font-bold text-[#3D2817] mb-8">You explored</h2>
-        <div className="flex gap-8 mb-6">
-          <div className="text-center">
-            <div className="text-6xl mb-2">🍽️</div>
-            <div className="text-5xl font-bold text-[#3D2817] mb-1">{wrapped2025.foodCount}</div>
-            <p className="text-[#6B5847] font-medium">Bites & Sips</p>
-          </div>
-          <div className="text-center">
-            <div className="text-6xl mb-2">🧭</div>
-            <div className="text-5xl font-bold text-[#3D2817] mb-1">{wrapped2025.activityCount}</div>
-            <p className="text-[#6B5847] font-medium">Experiences</p>
-          </div>
+        <div className="text-center">
+          <div className="text-6xl mb-2">🧭</div>
+          <div className="text-5xl font-bold text-[#3D2817] mb-1">{wrapped2025.activityCount}</div>
+          <p className="text-[#6B5847] font-medium">Experiences</p>
         </div>
-      </div>,
+      </div>
+    </div>,
 
-      // Slide 2: Top Cuisines
-      wrapped2025.topCuisines.length > 0 && (
-        <div key="cuisines" ref={slideRef} className="bg-[#FAF8F6] rounded-3xl p-12 min-h-[600px]">
-          <h2 className="text-3xl font-bold text-[#3D2817] mb-8 text-center">Top Cuisines</h2>
-          <ResponsiveContainer width="100%" height={400}>
-            <BarChart data={wrapped2025.topCuisines} layout="vertical">
-              <XAxis type="number"
+    // Slide 2: Top Cuisines
+    wrapped2025.topCuisines.length > 0 && (
+      <div key="cuisines" className="bg-[#FAF8F6] rounded-3xl p-12 min-h-[600px]">
+        <h2 className="text-3xl font-bold text-[#3D2817] mb-8 text-center">Top Cuisines</h2>
+        <ResponsiveContainer width="100%" height={400}>
+          <BarChart data={wrapped2025.topCuisines} layout="vertical">
+            <XAxis
+              type="number"
               allowDecimals={false}
-              domain={[0, 'dataMax']}
-              tickCount={Math.max(...wrapped2025.topCuisines.map(d => d.value)) + 1}
+              domain={[0, "dataMax"]}
+              tickCount={Math.max(...wrapped2025.topCuisines.map((d) => d.value)) + 1}
               interval={0}
               stroke="#6B5847"
-/>
-              <YAxis type="category" dataKey="name" stroke="#6B5847" width={120} />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: '#EFEBE7',
-                  border: '1px solid #E0D7CF',
-                  borderRadius: '12px',
-                  color: '#3D2817'
-                }}
-              />
-              <Bar dataKey="value" radius={[0, 12, 12, 0]}>
-  {wrapped2025.topCuisines.map((_, index) => (
-    <Cell
-      key={`cell-${index}`}
-      fill={CUISINE_BAR_COLORS[index % CUISINE_BAR_COLORS.length]}
-    />
-  ))}
-</Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      ),
-
-      // Slide 3: Favorites
-      wrapped2025.favorites.length > 0 && (
-        <div key="favorites" ref={slideRef} className="bg-[#FAF8F6] rounded-3xl p-12 min-h-[600px]">
-          <h2 className="text-3xl font-bold text-[#3D2817] mb-2 text-center flex items-center justify-center gap-2">
-            <Star size={32} className="fill-[#D4A574] text-[#D4A574]" />
-            Your Favorites
-          </h2>
-          <p className="text-center text-[#6B5847] mb-8">{wrapped2025.favorites.length} places that stood out</p>
-          <div className="grid grid-cols-2 gap-4">
-            {wrapped2025.favorites.slice(0, 6).map(place => (
-              <div key={place.id} className="bg-[#EFEBE7] rounded-2xl p-4 border border-[#E0D7CF]">
-                <h3 className="font-bold text-[#3D2817] mb-1">{place.name}</h3>
-                <p className="text-sm text-[#6B5847]">{place.placeType}</p>
-                {place.rating && (
-                  <div className="flex items-center gap-1 mt-2">
-                    <Star size={14} className="fill-[#D4A574] text-[#D4A574]" />
-                    <span className="text-sm font-medium text-[#3D2817]">{place.rating}</span>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      ),
-
-      // Slide 4: Top Rated
-      wrapped2025.topRated.length > 0 && (
-        <div key="toprated" ref={slideRef} className="bg-[#FAF8F6] rounded-3xl p-12 min-h-[600px]">
-          <h2 className="text-3xl font-bold text-[#3D2817] mb-8 text-center">Highest Rated</h2>
-          <div className="space-y-4 max-w-md mx-auto">
-            {wrapped2025.topRated.map(place => (
-              <div key={place.id} className="bg-[#EFEBE7] rounded-2xl p-5 border border-[#E0D7CF] flex items-center justify-between">
-                <div>
-                  <h3 className="font-bold text-[#3D2817] mb-1">{place.name}</h3>
-                  <p className="text-sm text-[#6B5847]">{place.cuisine || place.placeType}</p>
-                </div>
-                <div className="flex items-center gap-1">
-                  <Star size={20} className="fill-[#D4A574] text-[#D4A574]" />
-                  <span className="text-xl font-bold text-[#3D2817]">{place.rating}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      ),
-
-      // Slide 5: Best Value
-      wrapped2025.bestValue.length > 0 && (
-        <div key="bestvalue" ref={slideRef} className="bg-[#FAF8F6] rounded-3xl p-12 min-h-[600px]">
-          <h2 className="text-3xl font-bold text-[#3D2817] mb-8 text-center">Best Value</h2>
-          <div className="space-y-4 max-w-md mx-auto">
-            {wrapped2025.bestValue.map(place => (
-              <div key={place.id} className="bg-[#EFEBE7] rounded-2xl p-5 border border-[#E0D7CF]">
-                <h3 className="font-bold text-[#3D2817] mb-2">{place.name}</h3>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-1">
-                      <Star size={16} className="fill-[#D4A574] text-[#D4A574]" />
-                      <span className="font-bold text-[#3D2817]">{place.rating}</span>
-                    </div>
-                    <span className="text-[#6B5847]">·</span>
-                    <span className="font-medium text-[#3D2817]">{place.price}</span>
-                  </div>
-                  <span className="text-sm text-[#6B5847]">{place.cuisine}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      ),
-
-      // Slide 6: Vibes
-      wrapped2025.topTags.length > 0 && (
-        <div key="vibes" ref={slideRef} className="bg-[#FAF8F6] rounded-3xl p-12 min-h-[600px] flex flex-col items-center justify-center">
-          <h2 className="text-3xl font-bold text-[#3D2817] mb-8">Your 2025 Vibes</h2>
-          <div className="space-y-4 w-full max-w-md">
-            {wrapped2025.topTags.map(([tag, count], _index) => (
-              <div key={tag} className="flex items-center justify-between bg-[#EFEBE7] rounded-2xl p-4 border border-[#E0D7CF]">
-                <span className="text-lg font-semibold text-[#3D2817]">{tag}</span>
-                <span className="text-2xl font-bold text-[#C9A774]">{count}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      ),
-
-      // Slide 7: Closing
-      <div key="closing" ref={slideRef} className="bg-[#FAF8F6] rounded-3xl p-12 text-center min-h-[600px] flex flex-col items-center justify-center">
-        <h2 className="text-4xl font-bold text-[#3D2817] mb-4">That's your trail.</h2>
-        <p className="text-xl text-[#6B5847] mb-8">Here's to more great meals in 2026.</p>
-        <div className="text-6xl mb-8">✨</div>
-        <button
-          onClick={() => setScreen('log')}
-          className="bg-[#3D2817] text-[#FAF8F6] px-8 py-4 rounded-xl font-semibold hover:opacity-90 transition-all"
-        >
-          Keep Exploring
-        </button>
-      </div>
-    ].filter((s): s is React.ReactElement => Boolean(s));
-
-    return (
-      <div className="p-6 pb-24 max-w-3xl mx-auto">
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-[#3D2817]">Your 2025 Trail</h1>
-          <p className="text-sm text-[#6B5847] mt-1"></p>
-        </div>
-
-        <div className="mb-6 flex items-center justify-center gap-2">
-          {slides.map((_, index) => (
-            <button
-              key={index}
-              onClick={() => setWrappedSlide(index)}
-              className={`h-2 rounded-full transition-all ${
-                index === wrappedSlide
-                  ? 'w-8 bg-[#3D2817]'
-                  : 'w-2 bg-[#E0D7CF]'
-              }`}
             />
+            <YAxis type="category" dataKey="name" stroke="#6B5847" width={120} />
+            <Tooltip
+              contentStyle={{
+                backgroundColor: "#EFEBE7",
+                border: "1px solid #E0D7CF",
+                borderRadius: "12px",
+                color: "#3D2817",
+              }}
+            />
+            <Bar dataKey="value" radius={[0, 12, 12, 0]}>
+              {wrapped2025.topCuisines.map((_, index) => (
+                <Cell key={`cell-${index}`} fill={CUISINE_BAR_COLORS[index % CUISINE_BAR_COLORS.length]} />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    ),
+
+    // Slide 3: Favorites
+    wrapped2025.favorites.length > 0 && (
+      <div key="favorites" className="bg-[#FAF8F6] rounded-3xl p-12 min-h-[600px]">
+        <h2 className="text-3xl font-bold text-[#3D2817] mb-2 text-center flex items-center justify-center gap-2">
+          <Star size={32} className="fill-[#D4A574] text-[#D4A574]" />
+          Your Favorites
+        </h2>
+        <p className="text-center text-[#6B5847] mb-8">{wrapped2025.favorites.length} places that stood out</p>
+        <div className="grid grid-cols-2 gap-4">
+          {wrapped2025.favorites.slice(0, 6).map((place) => (
+            <div key={place.id} className="bg-[#EFEBE7] rounded-2xl p-4 border border-[#E0D7CF]">
+              <h3 className="font-bold text-[#3D2817] mb-1">{place.name}</h3>
+              <p className="text-sm text-[#6B5847]">{place.placeType}</p>
+              {place.rating && (
+                <div className="flex items-center gap-1 mt-2">
+                  <Star size={14} className="fill-[#D4A574] text-[#D4A574]" />
+                  <span className="text-sm font-medium text-[#3D2817]">{place.rating}</span>
+                </div>
+              )}
+            </div>
           ))}
         </div>
+      </div>
+    ),
 
-        <div
-  className="overflow-hidden"
-  style={{ touchAction: 'pan-y' }} // ✅ allow vertical scroll, detect horizontal swipe
-  onPointerDown={onPointerDown}
-  onPointerUp={(e) => onPointerUp(e, slides.length)}
-  onPointerCancel={onPointerCancel}
->
-  {slides[wrappedSlide]}
-</div>
+    // Slide 4: Top Rated
+    wrapped2025.topRated.length > 0 && (
+      <div key="toprated" className="bg-[#FAF8F6] rounded-3xl p-12 min-h-[600px]">
+        <h2 className="text-3xl font-bold text-[#3D2817] mb-8 text-center">Highest Rated</h2>
+        <div className="space-y-4 max-w-md mx-auto">
+          {wrapped2025.topRated.map((place) => (
+            <div key={place.id} className="bg-[#EFEBE7] rounded-2xl p-5 border border-[#E0D7CF] flex items-center justify-between">
+              <div>
+                <h3 className="font-bold text-[#3D2817] mb-1">{place.name}</h3>
+                <p className="text-sm text-[#6B5847]">{place.cuisine || place.placeType}</p>
+              </div>
+              <div className="flex items-center gap-1">
+                <Star size={20} className="fill-[#D4A574] text-[#D4A574]" />
+                <span className="text-xl font-bold text-[#3D2817]">{place.rating}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    ),
 
-        <div className="mt-6 flex gap-3 justify-center">
+    // Slide 5: Best Value
+    wrapped2025.bestValue.length > 0 && (
+      <div key="bestvalue" className="bg-[#FAF8F6] rounded-3xl p-12 min-h-[600px]">
+        <h2 className="text-3xl font-bold text-[#3D2817] mb-8 text-center">Best Value</h2>
+        <div className="space-y-4 max-w-md mx-auto">
+          {wrapped2025.bestValue.map((place) => (
+            <div key={place.id} className="bg-[#EFEBE7] rounded-2xl p-5 border border-[#E0D7CF]">
+              <h3 className="font-bold text-[#3D2817] mb-2">{place.name}</h3>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-1">
+                    <Star size={16} className="fill-[#D4A574] text-[#D4A574]" />
+                    <span className="font-bold text-[#3D2817]">{place.rating}</span>
+                  </div>
+                  <span className="text-[#6B5847]">·</span>
+                  <span className="font-medium text-[#3D2817]">{place.price}</span>
+                </div>
+                <span className="text-sm text-[#6B5847]">{place.cuisine}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    ),
+
+    // Slide 6: Vibes
+    wrapped2025.topTags.length > 0 && (
+      <div key="vibes" className="bg-[#FAF8F6] rounded-3xl p-12 min-h-[600px] flex flex-col items-center justify-center">
+        <h2 className="text-3xl font-bold text-[#3D2817] mb-8">Your 2025 Vibes</h2>
+        <div className="space-y-4 w-full max-w-md">
+          {wrapped2025.topTags.map(([tag, count]) => (
+            <div key={tag} className="flex items-center justify-between bg-[#EFEBE7] rounded-2xl p-4 border border-[#E0D7CF]">
+              <span className="text-lg font-semibold text-[#3D2817]">{tag}</span>
+              <span className="text-2xl font-bold text-[#C9A774]">{count}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    ),
+
+    // Slide 7: Closing
+    <div key="closing" className="bg-[#FAF8F6] rounded-3xl p-12 text-center min-h-[600px] flex flex-col items-center justify-center">
+      <h2 className="text-4xl font-bold text-[#3D2817] mb-4">That's your trail.</h2>
+      <p className="text-xl text-[#6B5847] mb-8">Here's to more great meals in 2026.</p>
+      <div className="text-6xl mb-8">✨</div>
+      <button
+        onClick={() => setScreen("log")}
+        className="bg-[#3D2817] text-[#FAF8F6] px-8 py-4 rounded-xl font-semibold hover:opacity-90 transition-all"
+      >
+        Keep Exploring
+      </button>
+    </div>,
+  ].filter((s): s is React.ReactElement => Boolean(s));
+
+  const paginate = (newDirection: number) => {
+    setDirection(newDirection);
+    setWrappedSlide((prev) => {
+      const next = prev + newDirection;
+      if (next < 0) return 0;
+      if (next > slides.length - 1) return slides.length - 1;
+      return next;
+    });
+  };
+
+  if (wrapped2025.total < 5) {
+    return (
+      <div className="p-6 flex items-center justify-center min-h-screen">
+        <div className="text-center max-w-md">
+          <div className="text-6xl mb-4">✨</div>
+          <h2 className="text-2xl font-bold text-[#3D2817] mb-3">Your 2025 Trail Awaits</h2>
+          <p className="text-[#6B5847] mb-2">Log at least 5 places from 2025 to unlock your wrapped recap.</p>
+          <p className="text-sm text-[#9B8B7E] mb-6">Currently logged: {wrapped2025.total} of 5</p>
           <button
-            onClick={() => setWrappedSlide(Math.max(0, wrappedSlide - 1))}
-            disabled={wrappedSlide === 0}
-            className="px-6 py-3 rounded-xl font-semibold bg-[#EFEBE7] text-[#3D2817] disabled:opacity-50 disabled:cursor-not-allowed border border-[#E0D7CF]"
+            onClick={() => setScreen("log")}
+            className="bg-[#3D2817] text-[#FAF8F6] px-8 py-3 rounded-xl font-semibold hover:opacity-90 transition-all"
           >
-            <ArrowLeft size={20} />
-          </button>
-          <button
-            onClick={() => setWrappedSlide(Math.min(slides.length - 1, wrappedSlide + 1))}
-            disabled={wrappedSlide === slides.length - 1}
-            className="px-6 py-3 rounded-xl font-semibold bg-[#EFEBE7] text-[#3D2817] disabled:opacity-50 disabled:cursor-not-allowed border border-[#E0D7CF]"
-          >
-            <ArrowRight size={20} />
+            Start Logging
           </button>
         </div>
       </div>
     );
-  };
+  }
+
+  return (
+    <div className="p-6 pb-24 max-w-3xl mx-auto">
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold text-[#3D2817]">Your 2025 Trail</h1>
+      </div>
+
+      <div className="mb-6 flex items-center justify-center gap-2">
+        {slides.map((_, index) => (
+          <button
+            key={index}
+            onClick={() => setWrappedSlide(index)}
+            className={`h-2 rounded-full transition-all ${
+              index === wrappedSlide ? "w-8 bg-[#3D2817]" : "w-2 bg-[#E0D7CF]"
+            }`}
+          />
+        ))}
+      </div>
+
+      <div className="relative overflow-hidden" style={{ touchAction: "pan-y" }}>
+        {wrappedSlide < slides.length - 1 && (
+          <div className="absolute inset-0 translate-y-3 scale-[0.98] opacity-40 pointer-events-none">
+            {slides[wrappedSlide + 1]}
+          </div>
+        )}
+
+        <AnimatePresence initial={false} custom={direction}>
+          <motion.div
+            key={wrappedSlide}
+            custom={direction}
+            variants={cardVariants}
+            initial="enter"
+            animate="center"
+            exit="exit"
+            transition={{
+              x: { type: "spring", stiffness: 320, damping: 30 },
+              opacity: { duration: 0.2 },
+              scale: { duration: 0.2 },
+            }}
+            drag="x"
+            dragConstraints={{ left: 0, right: 0 }}
+            dragElastic={0.18}
+            onDragEnd={(_, { offset, velocity }) => {
+              const swipe = swipePower(offset.x, velocity.x);
+              if (swipe < -swipeConfidenceThreshold) paginate(1);
+              else if (swipe > swipeConfidenceThreshold) paginate(-1);
+            }}
+            className="relative"
+          >
+            {slides[wrappedSlide]}
+          </motion.div>
+        </AnimatePresence>
+      </div>
+
+      <div className="mt-6 flex gap-3 justify-center">
+        <button
+          onClick={() => paginate(-1)}
+          disabled={wrappedSlide === 0}
+          className="px-6 py-3 rounded-xl font-semibold bg-[#EFEBE7] text-[#3D2817] disabled:opacity-50 disabled:cursor-not-allowed border border-[#E0D7CF]"
+        >
+          <ArrowLeft size={20} />
+        </button>
+        <button
+          onClick={() => paginate(1)}
+          disabled={wrappedSlide === slides.length - 1}
+          className="px-6 py-3 rounded-xl font-semibold bg-[#EFEBE7] text-[#3D2817] disabled:opacity-50 disabled:cursor-not-allowed border border-[#E0D7CF]"
+        >
+          <ArrowRight size={20} />
+        </button>
+      </div>
+    </div>
+  );
+};
 
   // SETTINGS TAB
   const SettingsTab = () => {
