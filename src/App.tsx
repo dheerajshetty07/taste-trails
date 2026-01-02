@@ -1385,19 +1385,83 @@ const WrappedTab = () => {
   const swipeConfidenceThreshold = 10000;
   const swipePower = (offset: number, velocity: number) => Math.abs(offset) * velocity;
 
-  // Slides (same content you already had)
+    // Wrapped Story Copy
+  const topCuisineNames = wrapped2025.topCuisines.map((c) => c.name);
+  const topTags = wrapped2025.topTags.map(([tag]) => tag);
+
+  const pick = (arr: string[], i: number) => (arr[i] ? arr[i] : null);
+
+  const c1 = pick(topCuisineNames, 0);
+  const c2 = pick(topCuisineNames, 1);
+  const c3 = pick(topCuisineNames, 2);
+
+  const t1 = pick(topTags, 0);
+  const t2 = pick(topTags, 1);
+  const t3 = pick(topTags, 2);
+
+  const story = {
+    hero: {
+      headline: "Your 2025 Trail",
+      sub: "Every place you went tells a story. Here’s what yours looked like.",
+      metricLabel: "places explored",
+    },
+    balance: {
+      headline: "You didn’t just go out, you explored.",
+      micro: "A balance of comfort and curiosity.",
+    },
+    cuisines: {
+      headline: "Your comfort flavors showed up strong.",
+      sub: c1
+        ? `You kept coming back to what you love, especially ${[c1, c2, c3].filter(Boolean).join(", ")}.`
+        : "You kept coming back to what you love.",
+      micro: "Familiar tastes, done really well.",
+    },
+    favorites: {
+      headline: "These places stood out.",
+      sub: `You marked ${wrapped2025.favorites.length} places as favorites, the ones you’d go back to without thinking twice.`,
+      micro: "Quality mattered more than quantity.",
+    },
+    topRated: {
+      headline: "You know what a 5-star experience feels like.",
+      sub: "These places earned your top rating, not just good, but unforgettable.",
+      micro: "No half-stars here.",
+    },
+    bestValue: {
+      headline: "You found the sweet spot 😋",
+      sub: "Great experiences don’t always have to be expensive. These places delivered the most value for their price.",
+      micro: "Smart choices, well rewarded.",
+    },
+    vibes: {
+      headline: "Your year had a vibe 😎",
+      sub: t1
+        ? `Your most common themes were ${[t1, t2, t3].filter(Boolean).join(", ")}.`
+        : "Your most common themes showed up again and again.",
+      micro: "That says more than you think.",
+    },
+    closing: {
+      headline: "That was your trail 🐾",
+      sub: "Every place added a little something to your year. Here’s to more great meals, moments, and memories in 2026.",
+      cta: "Keep Exploring",
+    },
+  };
+  // ------------------------------------------------------
+
+  // Slides 
   const slides = [
     // Slide 0: Hero
     <div key="hero" className="bg-[#FAF8F6] rounded-3xl p-12 text-center min-h-[600px] flex flex-col items-center justify-center">
-      <h1 className="text-5xl font-bold text-[#3D2817] mb-4">Your 2025 Trail</h1>
-      <div className="text-8xl font-bold text-[#C9A774] my-8">{wrapped2025.total}</div>
-      <p className="text-2xl text-[#6B5847]">places explored</p>
-    </div>,
+  <h1 className="text-5xl font-bold text-[#3D2817] mb-3">{story.hero.headline}</h1>
+  <p className="text-lg text-[#6B5847] max-w-xl">{story.hero.sub}</p>
+
+  <div className="text-8xl font-bold text-[#C9A774] my-8">{wrapped2025.total}</div>
+  <p className="text-2xl text-[#6B5847]">{story.hero.metricLabel}</p>
+</div>,
 
     // Slide 1: Balance
     <div key="balance" className="bg-[#FAF8F6] rounded-3xl p-12 min-h-[600px] flex flex-col items-center justify-center">
-      <h2 className="text-3xl font-bold text-[#3D2817] mb-8">You explored</h2>
-      <div className="flex gap-8 mb-6">
+  <h2 className="text-3xl font-bold text-[#3D2817] mb-8">{story.balance.headline}</h2>
+  <p className="text-sm text-[#9B8B7E] text-center mb-20">{story.balance.micro}</p>
+  <div className="flex gap-8 mb-6">
         <div className="text-center">
           <div className="text-6xl mb-2">🍽️</div>
           <div className="text-5xl font-bold text-[#3D2817] mb-1">{wrapped2025.foodCount}</div>
@@ -1414,7 +1478,9 @@ const WrappedTab = () => {
     // Slide 2: Top Cuisines
     wrapped2025.topCuisines.length > 0 && (
       <div key="cuisines" className="bg-[#FAF8F6] rounded-3xl p-12 min-h-[600px]">
-        <h2 className="text-3xl font-bold text-[#3D2817] mb-8 text-center">Top Cuisines</h2>
+        <h2 className="text-3xl font-bold text-[#3D2817] mb-8 text-center">{story.cuisines.headline}</h2>
+<p className="text-center text-[#6B5847] mb-6 max-w-xl mx-auto">{story.cuisines.sub}</p>
+<p className="text-center text-xs text-[#9B8B7E] mb-8">{story.cuisines.micro}</p>
         <ResponsiveContainer width="100%" height={400}>
           <BarChart data={wrapped2025.topCuisines} layout="vertical">
             <XAxis
@@ -1447,11 +1513,12 @@ const WrappedTab = () => {
     // Slide 3: Favorites
     wrapped2025.favorites.length > 0 && (
       <div key="favorites" className="bg-[#FAF8F6] rounded-3xl p-12 min-h-[600px]">
-        <h2 className="text-3xl font-bold text-[#3D2817] mb-2 text-center flex items-center justify-center gap-2">
-          <Star size={32} className="fill-[#D4A574] text-[#D4A574]" />
-          Your Favorites
-        </h2>
-        <p className="text-center text-[#6B5847] mb-8">{wrapped2025.favorites.length} places that stood out</p>
+        <h2 className="text-3xl font-bold text-[#3D2817] mb-8 text-center flex items-center justify-center gap-2">
+  <Star size={32} className="fill-[#D4A574] text-[#D4A574]" />
+  {story.favorites.headline}
+</h2>
+<p className="text-center text-[#6B5847] mb-6 max-w-xl mx-auto">{story.favorites.sub}</p>
+<p className="text-center text-xs text-[#9B8B7E] mb-8">{story.favorites.micro}</p>
         <div className="grid grid-cols-2 gap-4">
           {wrapped2025.favorites.slice(0, 6).map((place) => (
             <div key={place.id} className="bg-[#EFEBE7] rounded-2xl p-4 border border-[#E0D7CF]">
@@ -1472,7 +1539,9 @@ const WrappedTab = () => {
     // Slide 4: Top Rated
     wrapped2025.topRated.length > 0 && (
       <div key="toprated" className="bg-[#FAF8F6] rounded-3xl p-12 min-h-[600px]">
-        <h2 className="text-3xl font-bold text-[#3D2817] mb-8 text-center">Highest Rated</h2>
+        <h2 className="text-3xl font-bold text-[#3D2817] mb-8 text-center">{story.topRated.headline}</h2>
+<p className="text-center text-[#6B5847] mb-6 max-w-xl mx-auto">{story.topRated.sub}</p>
+<p className="text-center text-xs text-[#9B8B7E] mb-8">{story.topRated.micro}</p>
         <div className="space-y-4 max-w-md mx-auto">
           {wrapped2025.topRated.map((place) => (
             <div key={place.id} className="bg-[#EFEBE7] rounded-2xl p-5 border border-[#E0D7CF] flex items-center justify-between">
@@ -1493,7 +1562,9 @@ const WrappedTab = () => {
     // Slide 5: Best Value
     wrapped2025.bestValue.length > 0 && (
       <div key="bestvalue" className="bg-[#FAF8F6] rounded-3xl p-12 min-h-[600px]">
-        <h2 className="text-3xl font-bold text-[#3D2817] mb-8 text-center">Best Value</h2>
+        <h2 className="text-3xl font-bold text-[#3D2817] mb-6 text-center">{story.bestValue.headline}</h2>
+<p className="text-center text-[#6B5847] mb-8 max-w-xl mx-auto">{story.bestValue.sub}</p>
+<p className="text-center text-xs text-[#9B8B7E] mb-8">{story.bestValue.micro}</p>
         <div className="space-y-4 max-w-md mx-auto">
           {wrapped2025.bestValue.map((place) => (
             <div key={place.id} className="bg-[#EFEBE7] rounded-2xl p-5 border border-[#E0D7CF]">
@@ -1518,7 +1589,9 @@ const WrappedTab = () => {
     // Slide 6: Vibes
     wrapped2025.topTags.length > 0 && (
       <div key="vibes" className="bg-[#FAF8F6] rounded-3xl p-12 min-h-[600px] flex flex-col items-center justify-center">
-        <h2 className="text-3xl font-bold text-[#3D2817] mb-8">Your 2025 Vibes</h2>
+        <h2 className="text-3xl font-bold text-[#3D2817] mb-8">{story.vibes.headline}</h2>
+<p className="text-center text-[#6B5847] mb-6 max-w-xl">{story.vibes.sub}</p>
+<p className="text-center text-xs text-[#9B8B7E] mb-8">{story.vibes.micro}</p>
         <div className="space-y-4 w-full max-w-md">
           {wrapped2025.topTags.map(([tag, count]) => (
             <div key={tag} className="flex items-center justify-between bg-[#EFEBE7] rounded-2xl p-4 border border-[#E0D7CF]">
@@ -1532,15 +1605,15 @@ const WrappedTab = () => {
 
     // Slide 7: Closing
     <div key="closing" className="bg-[#FAF8F6] rounded-3xl p-12 text-center min-h-[600px] flex flex-col items-center justify-center">
-      <h2 className="text-4xl font-bold text-[#3D2817] mb-4">That's your trail.</h2>
-      <p className="text-xl text-[#6B5847] mb-8">Here's to more great meals in 2026.</p>
-      <div className="text-6xl mb-8">✨</div>
-      <button
-        onClick={() => setScreen("log")}
-        className="bg-[#3D2817] text-[#FAF8F6] px-8 py-4 rounded-xl font-semibold hover:opacity-90 transition-all"
-      >
-        Keep Exploring
-      </button>
+      <h2 className="text-4xl font-bold text-[#3D2817] mb-8">{story.closing.headline}</h2>
+<p className="text-xl text-[#6B5847] mb-8 max-w-xl">{story.closing.sub}</p>
+<div className="text-6xl mb-8">✨</div>
+<button
+  onClick={() => setScreen('log')}
+  className="bg-[#3D2817] text-[#FAF8F6] px-8 py-4 rounded-xl font-semibold hover:opacity-90 transition-all"
+>
+  {story.closing.cta}
+</button>
     </div>,
   ].filter((s): s is React.ReactElement => Boolean(s));
 
