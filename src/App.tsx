@@ -152,6 +152,7 @@ const App = () => {
   const [wrappedSlide, setWrappedSlide] = useState(0);
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
+  const [swipeEnabled, setSwipeEnabled] = useState(true);
 
   // Load from localStorage
   useEffect(() => {
@@ -331,30 +332,30 @@ const isInteractiveTarget = (target: EventTarget | null) => {
 };
 
 const onTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
-  if (isInteractiveTarget(e.target)) return; // ✅ ignore form interactions
+  if (!swipeEnabled) return;
+  if (isInteractiveTarget(e.target)) return;
+
   setTouchEnd(null);
   setTouchStart(e.targetTouches[0].clientX);
 };
 
 const onTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+  if (!swipeEnabled) return;
   if (isInteractiveTarget(e.target)) return;
+
   setTouchEnd(e.targetTouches[0].clientX);
 };
 
 const onTouchEnd = () => {
+  if (!swipeEnabled) return;
   if (touchStart == null || touchEnd == null) return;
 
   const distance = touchStart - touchEnd;
   const isLeftSwipe = distance > minSwipeDistance;
   const isRightSwipe = distance < -minSwipeDistance;
 
-  if (isLeftSwipe && currentIndex < places.length - 1) {
-    setCurrentIndex((i) => i + 1);
-  }
-
-  if (isRightSwipe && currentIndex > 0) {
-    setCurrentIndex((i) => i - 1);
-  }
+  if (isLeftSwipe && currentIndex < places.length - 1) setCurrentIndex((i) => i + 1);
+  if (isRightSwipe && currentIndex > 0) setCurrentIndex((i) => i - 1);
 };
 
   // Filtered and sorted places
@@ -694,12 +695,18 @@ const wrapped2025 = useMemo(() => {
     else topItemLabel = 'Best Dish';
 
     return (
-      <div 
-        className="p-6 pb-60 max-w-2xl mx-auto"
-        onTouchStart={onTouchStart}
-        onTouchMove={onTouchMove}
-        onTouchEnd={onTouchEnd}
-      >
+  <div
+    className="p-6 pb-60 max-w-2xl mx-auto"
+    onTouchStart={onTouchStart}
+    onTouchMove={onTouchMove}
+    onTouchEnd={onTouchEnd}
+    onFocusCapture={() => setSwipeEnabled(false)}
+    onBlurCapture={() => setSwipeEnabled(true)}
+    onTouchStartCapture={(e) => {
+      if (isInteractiveTarget(e.target)) setSwipeEnabled(false);
+    }}
+    onTouchEndCapture={() => setSwipeEnabled(true)}
+  >
         <div className="flex items-center justify-between mb-4">
           <button
             onClick={() => setScreen('log')}
