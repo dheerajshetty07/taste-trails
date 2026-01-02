@@ -183,6 +183,32 @@ const App = () => {
   }, duration);
 };
 
+const normalizePlaces = (input: unknown): Place[] => {
+  if (!Array.isArray(input)) return [];
+  return input
+    .filter((x): x is Partial<Place> => typeof x === 'object' && x !== null)
+    .map((x) => ({
+      id: typeof x.id === 'string' ? x.id : generateId(),
+      name: typeof x.name === 'string' ? x.name : 'Untitled',
+      placeType: typeof x.placeType === 'string' ? x.placeType : undefined,
+      cuisine: typeof x.cuisine === 'string' ? x.cuisine : undefined,
+      topItem: typeof x.topItem === 'string' ? x.topItem : undefined,
+      rating: typeof x.rating === 'number' ? x.rating : null,
+      isFavorite: typeof x.isFavorite === 'boolean' ? x.isFavorite : false,
+      price: typeof x.price === 'string' ? x.price : undefined,
+      tags: Array.isArray(x.tags) ? x.tags.filter((t): t is string => typeof t === 'string') : [],
+      notes: typeof x.notes === 'string' ? x.notes : '',
+      city: typeof x.city === 'string' ? x.city : undefined,
+      neighborhood: typeof x.neighborhood === 'string' ? x.neighborhood : undefined,
+      dateVisited: typeof x.dateVisited === 'string' ? x.dateVisited : undefined,
+      mapUrl: typeof x.mapUrl === 'string' ? x.mapUrl : undefined,
+      websiteUrl: typeof x.websiteUrl === 'string' ? x.websiteUrl : undefined,
+      menuUrl: typeof x.menuUrl === 'string' ? x.menuUrl : undefined,
+      createdAt: typeof x.createdAt === 'number' ? x.createdAt : Date.now(),
+      updatedAt: Date.now(),
+    }));
+};
+
   const handleImport = (e: ChangeEvent<HTMLInputElement>) => {
   const file = e.target.files?.[0];
   if (!file) return;
@@ -217,32 +243,6 @@ if (places.length > 0) {
       showToast('Failed to parse JSON file');
     }
   };
-
-  const normalizePlaces = (input: unknown): Place[] => {
-  if (!Array.isArray(input)) return [];
-  return input
-    .filter((x): x is Partial<Place> => typeof x === 'object' && x !== null)
-    .map((x) => ({
-      id: typeof x.id === 'string' ? x.id : generateId(),
-      name: typeof x.name === 'string' ? x.name : 'Untitled',
-      placeType: typeof x.placeType === 'string' ? x.placeType : undefined,
-      cuisine: typeof x.cuisine === 'string' ? x.cuisine : undefined,
-      topItem: typeof x.topItem === 'string' ? x.topItem : undefined,
-      rating: typeof x.rating === 'number' ? x.rating : null,
-      isFavorite: typeof x.isFavorite === 'boolean' ? x.isFavorite : false,
-      price: typeof x.price === 'string' ? x.price : undefined,
-      tags: Array.isArray(x.tags) ? x.tags.filter((t): t is string => typeof t === 'string') : [],
-      notes: typeof x.notes === 'string' ? x.notes : '',
-      city: typeof x.city === 'string' ? x.city : undefined,
-      neighborhood: typeof x.neighborhood === 'string' ? x.neighborhood : undefined,
-      dateVisited: typeof x.dateVisited === 'string' ? x.dateVisited : undefined,
-      mapUrl: typeof x.mapUrl === 'string' ? x.mapUrl : undefined,
-      websiteUrl: typeof x.websiteUrl === 'string' ? x.websiteUrl : undefined,
-      menuUrl: typeof x.menuUrl === 'string' ? x.menuUrl : undefined,
-      createdAt: typeof x.createdAt === 'number' ? x.createdAt : Date.now(),
-      updatedAt: Date.now(),
-    }));
-};
 
   reader.readAsText(file);
   e.target.value = '';
@@ -321,31 +321,41 @@ const deletePlace = (id: string) => {
   }
 };
 
-  // Swipe handling
-  const minSwipeDistance = 50;
+  /// ✅ Prevent swipe navigation from hijacking dropdowns / inputs on mobile
+const minSwipeDistance = 50;
 
-  const onTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+const isInteractiveTarget = (target: EventTarget | null) => {
+  const el = target as HTMLElement | null;
+  if (!el) return false;
+  return Boolean(el.closest('input, textarea, select, option, button, a, label'));
+};
+
+const onTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+  if (isInteractiveTarget(e.target)) return; // ✅ ignore form interactions
   setTouchEnd(null);
   setTouchStart(e.targetTouches[0].clientX);
 };
 
 const onTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+  if (isInteractiveTarget(e.target)) return;
   setTouchEnd(e.targetTouches[0].clientX);
 };
 
-  const onTouchEnd = () => {
-    if (!touchStart || !touchEnd) return;
-    const distance = touchStart - touchEnd;
-    const isLeftSwipe = distance > minSwipeDistance;
-    const isRightSwipe = distance < -minSwipeDistance;
+const onTouchEnd = () => {
+  if (touchStart == null || touchEnd == null) return;
 
-    if (isLeftSwipe && currentIndex < places.length - 1) {
-      setCurrentIndex(currentIndex + 1);
-    }
-    if (isRightSwipe && currentIndex > 0) {
-      setCurrentIndex(currentIndex - 1);
-    }
-  };
+  const distance = touchStart - touchEnd;
+  const isLeftSwipe = distance > minSwipeDistance;
+  const isRightSwipe = distance < -minSwipeDistance;
+
+  if (isLeftSwipe && currentIndex < places.length - 1) {
+    setCurrentIndex((i) => i + 1);
+  }
+
+  if (isRightSwipe && currentIndex > 0) {
+    setCurrentIndex((i) => i - 1);
+  }
+};
 
   // Filtered and sorted places
   const filteredPlaces = useMemo(() => {
@@ -396,71 +406,95 @@ const onTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
   }, [places, searchTerm, filterType, filterCuisine, filterRating, filterFavorites, sortBy]);
 
   // Wrapped data 
-  const wrapped2025 = useMemo(() => {
-    const places2025 = places.filter(p => {
-      const ts = p.createdAt ?? p.updatedAt;
-      if (!ts) return false;
-      return new Date(ts).getFullYear() === 2025;
-    });
+  // Wrapped data (shows "2025 Wrapped" but does NOT require dates to populate)
+// If at least one place can be identified as 2025, use only 2025.
+// Otherwise (no dates), fall back to all places so you can test Wrapped.
+const WRAPPED_YEAR = 2025;
 
-    const foodPlaces = places2025.filter(
-  (p) => ['Restaurant', 'Cafe / Bakery', 'Bar / Cocktails', 'Dessert'].includes(p.placeType ?? '')
-);
-    const activities = places2025.filter(p => p.placeType === 'Activity / Sightseeing');
-
-    const cuisineCounts: Record<string, number> = {};
-places2025.forEach((p) => {
-  if (p.cuisine && (p.placeType === 'Restaurant' || p.placeType === 'Cafe / Bakery')) {
-    cuisineCounts[p.cuisine] = (cuisineCounts[p.cuisine] ?? 0) + 1;
+const getPlaceYear = (p: Place): number | null => {
+  // Prefer dateVisited if present, else createdAt/updatedAt
+  if (p.dateVisited) {
+    const t = new Date(p.dateVisited).getTime();
+    if (!Number.isNaN(t)) return new Date(t).getFullYear();
   }
-});
+  const ts = p.createdAt ?? p.updatedAt;
+  if (typeof ts === 'number') {
+    const t = new Date(ts).getTime();
+    if (!Number.isNaN(t)) return new Date(t).getFullYear();
+  }
+  return null;
+};
 
-const topCuisines: Array<{ name: string; value: number }> = Object.entries(cuisineCounts)
-  .map(([name, value]) => ({ name, value }))
-  .sort((a, b) => b.value - a.value)
-  .slice(0, 5);
+const wrapped2025 = useMemo(() => {
+  const validPlaces = places.filter((p) => p && (p.name ?? '').trim().length > 0);
 
+  // Do we have ANY place that clearly belongs to 2025?
+  const hasAny2025 = validPlaces.some((p) => getPlaceYear(p) === WRAPPED_YEAR);
 
-    const favorites = places2025.filter(p => p.isFavorite);
-    
-    const topRated = places2025
-      .filter(p => p.rating === 5)
-      .slice(0, 5);
+  // If yes -> use only 2025 places. If not -> use ALL places (testing mode).
+  const base = hasAny2025
+    ? validPlaces.filter((p) => getPlaceYear(p) === WRAPPED_YEAR)
+    : validPlaces;
 
-    const priceMap: Record<Price, number> = { '$': 1, '$$': 2, '$$$': 3, '$$$$': 4 };
+  const foodPlaces = base.filter((p) =>
+    ['Restaurant', 'Cafe / Bakery', 'Bar / Cocktails', 'Dessert'].includes(p.placeType ?? '')
+  );
 
-const bestValue = places2025
-  .filter((p) => (p.rating ?? 0) > 0 && typeof p.price === 'string' && p.placeType !== 'Activity / Sightseeing')
-  .map((p) => {
-    const key = p.price as Price;
-    const denom = priceMap[key];
-    return { ...p, valueScore: denom ? (p.rating ?? 0) / denom : 0 };
-  })
-  .sort((a, b) => b.valueScore - a.valueScore)
-  .slice(0, 3);
+  const activities = base.filter((p) => p.placeType === 'Activity / Sightseeing');
 
-    const tagCounts: Record<string, number> = {};
-places2025.forEach((p) => {
-  (p.tags ?? []).forEach((tag: string) => {
-    tagCounts[tag] = (tagCounts[tag] ?? 0) + 1;
+  const cuisineCounts: Record<string, number> = {};
+  base.forEach((p) => {
+    if (p.cuisine && (p.placeType === 'Restaurant' || p.placeType === 'Cafe / Bakery')) {
+      cuisineCounts[p.cuisine] = (cuisineCounts[p.cuisine] ?? 0) + 1;
+    }
   });
-});
 
-const topTags: Array<[string, number]> = Object.entries(tagCounts)
-  .sort((a, b) => b[1] - a[1])
-  .slice(0, 5);
+  const topCuisines: Array<{ name: string; value: number }> = Object.entries(cuisineCounts)
+    .map(([name, value]) => ({ name, value }))
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 5);
 
-    return {
-      total: places2025.length,
-      foodCount: foodPlaces.length,
-      activityCount: activities.length,
-      topCuisines,
-      favorites,
-      topRated,
-      bestValue,
-      topTags
-    };
-  }, [places]);
+  const favorites = base.filter((p) => p.isFavorite);
+
+  const topRated = base
+    .filter((p) => p.rating === 5)
+    .slice(0, 5);
+
+  const priceMap: Record<Price, number> = { '$': 1, '$$': 2, '$$$': 3, '$$$$': 4 };
+
+  const bestValue = base
+    .filter((p) => (p.rating ?? 0) > 0 && typeof p.price === 'string' && p.placeType !== 'Activity / Sightseeing')
+    .map((p) => {
+      const key = p.price as Price;
+      const denom = priceMap[key];
+      return { ...p, valueScore: denom ? (p.rating ?? 0) / denom : 0 };
+    })
+    .sort((a, b) => b.valueScore - a.valueScore)
+    .slice(0, 3);
+
+  const tagCounts: Record<string, number> = {};
+  base.forEach((p) => {
+    (p.tags ?? []).forEach((tag) => {
+      tagCounts[tag] = (tagCounts[tag] ?? 0) + 1;
+    });
+  });
+
+  const topTags: Array<[string, number]> = Object.entries(tagCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5);
+
+  return {
+    total: base.length,
+    foodCount: foodPlaces.length,
+    activityCount: activities.length,
+    topCuisines,
+    favorites,
+    topRated,
+    bestValue,
+    topTags,
+    usingYearFilter: hasAny2025, // optional: for debugging/UI if you want
+  };
+}, [places]);
 
   // LOG TAB
   const LogTab = () => {
@@ -1543,7 +1577,7 @@ const topTags: Array<[string, number]> = Object.entries(tagCounts)
       // Slide 7: Closing
       <div key="closing" ref={slideRef} className="bg-[#FAF8F6] rounded-3xl p-12 text-center min-h-[600px] flex flex-col items-center justify-center">
         <h2 className="text-4xl font-bold text-[#3D2817] mb-4">That's your trail.</h2>
-        <p className="text-xl text-[#6B5847] mb-8">Here's to more great meals in 2025.</p>
+        <p className="text-xl text-[#6B5847] mb-8">Here's to more great meals in 2026.</p>
         <div className="text-6xl mb-8">✨</div>
         <button
           onClick={() => setScreen('log')}
@@ -1552,7 +1586,7 @@ const topTags: Array<[string, number]> = Object.entries(tagCounts)
           Keep Exploring
         </button>
       </div>
-    ].filter(Boolean);
+    ].filter((s): s is React.ReactElement => Boolean(s));
 
     return (
       <div className="p-6 pb-24 max-w-3xl mx-auto">
