@@ -58,15 +58,19 @@ const CUISINE_BAR_COLORS = [
 const PLACE_TYPES = [
   "Restaurant",
   "Cafe / Bakery",
+  "Dessert",
   "Bar / Cocktails",
-  "Activity / Sightseeing"
+  "Activity / Sightseeing",
+  "Experience",
+  "Stay",
+  "Other"
 ];
 
 const CUISINES = [
   "American", "Italian", "Chinese", "Japanese", "Korean", "Thai", "Vietnamese",
   "Indian", "French", "Greek", "Spanish", "Turkish", "Lebanese", "Ethiopian",
   "Peruvian", "Brazilian", "Caribbean", "Hawaiian", "Cuban", "Mexican","Mediterranean",
-  "Middle Eastern", "Fusion", "Other"
+  "Middle Eastern", "Fusion", "Other", "Balkan","Taiwanese", "Filipino", "German",
 ].sort();
 
 const TAGS = [
@@ -74,7 +78,9 @@ const TAGS = [
   "Quick Bite", "Late Night", "Happy Hour",
   "Great Service", "Good Ambience", "Cozy", "Trendy",
   "Outdoor Seating", "Great Views",
-  "Hidden Gem", "Tourist Spot", "Local Favorite", "Casual"
+  "Hidden Gem", "Tourist Spot", "Local Favorite", "Casual", 
+  "Fast Casual", "Fine Dining", "All You Can Eat", 
+  "Authentic","Scenic", "Coktail Spot"
 ];
 
 const CITY_OPTIONS = [
@@ -132,6 +138,250 @@ const Modal = ({ isOpen, onClose, title, children }: ModalProps) => {
         </div>
         <div className="p-4">{children}</div>
       </div>
+    </div>
+  );
+};
+
+type PlacesTabProps = {
+  filteredPlaces: Place[];
+  places: Place[];
+
+  searchTerm: string;
+  setSearchTerm: React.Dispatch<React.SetStateAction<string>>;
+
+  filterType: string;
+  setFilterType: React.Dispatch<React.SetStateAction<string>>;
+
+  filterCuisine: string;
+  setFilterCuisine: React.Dispatch<React.SetStateAction<string>>;
+
+  filterRating: string;
+  setFilterRating: React.Dispatch<React.SetStateAction<string>>;
+
+  filterFavorites: boolean;
+  setFilterFavorites: React.Dispatch<React.SetStateAction<boolean>>;
+
+  sortBy: string;
+  setSortBy: React.Dispatch<React.SetStateAction<string>>;
+
+  deletePlace: (id: string) => void;
+  setCurrentIndex: React.Dispatch<React.SetStateAction<number>>;
+  setScreen: React.Dispatch<React.SetStateAction<Screen>>;
+};
+
+const PlacesTab: React.FC<PlacesTabProps> = ({
+  filteredPlaces,
+  places,
+  searchTerm,
+  setSearchTerm,
+  filterType,
+  setFilterType,
+  filterCuisine,
+  setFilterCuisine,
+  filterRating,
+  setFilterRating,
+  filterFavorites,
+  setFilterFavorites,
+  sortBy,
+  setSortBy,
+  deletePlace,
+  setCurrentIndex,
+  setScreen,
+}) => {
+  const [showFilters, setShowFilters] = useState(false);
+  const [selectedPlace, setSelectedPlace] = useState<Place | null>(null);
+
+  // Keep your smoother typing approach
+  const [localSearch, setLocalSearch] = useState(searchTerm);
+
+  useEffect(() => {
+    setLocalSearch(searchTerm);
+  }, [searchTerm]);
+
+  useEffect(() => {
+    const t = setTimeout(() => setSearchTerm(localSearch), 150);
+    return () => clearTimeout(t);
+  }, [localSearch, setSearchTerm]);
+
+  return (
+    <div className="p-6 pb-24 max-w-4xl mx-auto">
+      <h1 className="text-3xl font-bold text-[#3D2817] mb-6">Places</h1>
+
+      <div className="bg-[#EFEBE7] rounded-2xl p-4 border-2 border-[#E0D7CF] mb-6 space-y-3">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[#9B8B7E]" size={20} />
+          <input
+            type="text"
+            value={localSearch}
+            onChange={(e) => setLocalSearch(e.target.value)}
+            placeholder="Search places..."
+            className="w-full pl-10 pr-4 py-3 border-2 border-[#E0D7CF] rounded-xl focus:border-[#C9A774] focus:outline-none bg-[#FAF8F6] text-[#3D2817]"
+          />
+        </div>
+
+        <button
+          onClick={() => setShowFilters(!showFilters)}
+          className="w-full flex items-center justify-between p-3 bg-white border-2 border-[#E0D7CF] rounded-xl text-[#3D2817] font-medium hover:border-[#C9A774] transition-all"
+        >
+          <span className="flex items-center gap-2">
+            <Filter size={18} />
+            Filters & Sort
+          </span>
+          <span className="text-xs">{showFilters ? '▼' : '▶'}</span>
+        </button>
+
+        {showFilters && (
+          <div className="space-y-3 pt-3 border-t border-[#E0D7CF]">
+            <select
+              value={filterType}
+              onChange={(e) => setFilterType(e.target.value)}
+              className="w-full p-3 border-2 border-[#E0D7CF] rounded-xl focus:border-[#C9A774] focus:outline-none bg-[#FAF8F6] text-[#3D2817]"
+            >
+              <option value="">All Place Types</option>
+              {PLACE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+            </select>
+
+            <select
+              value={filterCuisine}
+              onChange={(e) => setFilterCuisine(e.target.value)}
+              className="w-full p-3 border-2 border-[#E0D7CF] rounded-xl focus:border-[#C9A774] focus:outline-none bg-[#FAF8F6] text-[#3D2817]"
+            >
+              <option value="">All Cuisines</option>
+              {CUISINES.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+
+            <select
+              value={filterRating}
+              onChange={(e) => setFilterRating(e.target.value)}
+              className="w-full p-3 border-2 border-[#E0D7CF] rounded-xl focus:border-[#C9A774] focus:outline-none bg-[#FAF8F6] text-[#3D2817]"
+            >
+              <option value="">All Ratings</option>
+              <option value="4">4+ Stars</option>
+              <option value="3">3+ Stars</option>
+            </select>
+
+            <button
+              onClick={() => setFilterFavorites(!filterFavorites)}
+              className={`w-full p-3 rounded-xl font-medium transition-all border-2 ${
+                filterFavorites
+                  ? 'bg-[#D4A574] text-white border-[#D4A574]'
+                  : 'bg-white text-[#3D2817] border-[#E0D7CF] hover:border-[#C9A774]'
+              }`}
+            >
+              <span className="flex items-center justify-center gap-2">
+                <Star size={18} className={filterFavorites ? 'fill-white' : ''} />
+                Favorites Only
+              </span>
+            </button>
+
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              className="w-full p-3 border-2 border-[#E0D7CF] rounded-xl focus:border-[#C9A774] focus:outline-none bg-[#FAF8F6] text-[#3D2817]"
+            >
+              <option value="name">Sort by Name</option>
+              <option value="rating">Sort by Rating</option>
+              <option value="date">Sort by Date Visited</option>
+              <option value="updated">Sort by Last Edited</option>
+            </select>
+          </div>
+        )}
+      </div>
+
+      <div className="space-y-3">
+        {filteredPlaces.length === 0 ? (
+          <div className="text-center py-12 text-[#6B5847]">
+            <p>No places found</p>
+          </div>
+        ) : (
+          filteredPlaces.map((place) => (
+            <div
+              key={place.id}
+              onClick={() => setSelectedPlace(place)}
+              className="bg-white rounded-2xl p-5 border-2 border-[#E0D7CF] cursor-pointer hover:border-[#C9A774] hover:shadow-md transition-all"
+            >
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <h3 className="text-xl font-bold text-[#3D2817]">{place.name}</h3>
+                    {place.isFavorite && <Star size={18} className="fill-[#D4A574] text-[#D4A574]" />}
+                  </div>
+
+                  {(place.neighborhood || place.city) && (
+                    <p className="text-sm text-[#6B5847] mb-2">
+                      {[place.neighborhood, place.city].filter(Boolean).join(', ')}
+                    </p>
+                  )}
+
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    <span className="inline-block bg-white text-[#3D2817] text-xs px-3 py-1 rounded-full font-medium border border-[#E0D7CF]">
+                      {place.placeType}
+                    </span>
+                    {place.cuisine && (
+                      <span className="inline-block bg-white text-[#3D2817] text-xs px-3 py-1 rounded-full font-medium border border-[#E0D7CF]">
+                        {place.cuisine}
+                      </span>
+                    )}
+                    {place.price && (
+                      <span className="inline-block bg-white text-[#3D2817] text-xs px-3 py-1 rounded-full font-medium border border-[#E0D7CF]">
+                        {place.price}
+                      </span>
+                    )}
+                  </div>
+
+                  {place.topItem && <p className="text-sm text-[#6B5847] italic">"{place.topItem}"</p>}
+                </div>
+
+                {place.rating && (
+                  <div className="flex items-center gap-1 ml-4">
+                    <Star size={16} className="fill-[#D4A574] text-[#D4A574]" />
+                    <span className="font-bold text-[#3D2817]">{place.rating}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      <Modal
+        isOpen={!!selectedPlace}
+        onClose={() => setSelectedPlace(null)}
+        title={selectedPlace?.name || ''}
+      >
+        {/* keep your existing modal body here exactly as you already have it */}
+        {selectedPlace && (
+          <div className="space-y-4">
+            {/* ...UNCHANGED modal content... */}
+
+            <div className="pt-4 space-y-2 border-t border-[#6B5847]">
+              <button
+                onClick={() => {
+                  const index = places.findIndex(p => p.id === selectedPlace.id);
+                  setCurrentIndex(index);
+                  setSelectedPlace(null);
+                  setScreen('enrich');
+                }}
+                className="w-full bg-[#C9A774] text-[#3D2817] py-4 rounded-xl font-bold hover:bg-[#D4A574] transition-all shadow-lg"
+              >
+                Edit Place
+              </button>
+
+              <button
+                onClick={() => {
+                  if (confirm('Delete this place?')) {
+                    deletePlace(selectedPlace.id);
+                    setSelectedPlace(null);
+                  }
+                }}
+                className="w-full bg-[#A85846] text-white py-3 rounded-xl font-medium hover:opacity-90 transition-all"
+              >
+                Delete Place
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 };
@@ -966,398 +1216,151 @@ const wrapped2025 = useMemo(() => {
     );
   };
 
-  // PLACES TAB
-  const PlacesTab = () => {
-    const [showFilters, setShowFilters] = useState(false);
-    const [selectedPlace, setSelectedPlace] = useState<Place | null>(null);
-    const [localSearch, setLocalSearch] = useState(searchTerm);
+  // MAP TAB (simplified list grouped by city)
+
+  const [mapQuery, setMapQuery] = useState('');
+  const [localMapQuery, setLocalMapQuery] = useState('');
 
   useEffect(() => {
-    setLocalSearch(searchTerm);
-  }, [searchTerm]);
+  setLocalMapQuery(mapQuery);
+}, [mapQuery]);
+
+useEffect(() => {
+  const t = window.setTimeout(() => setMapQuery(localMapQuery), 150);
+  return () => window.clearTimeout(t);
+}, [localMapQuery]);
+  
+  const MapTab = () => {
+  const [mapQuery, setMapQuery] = useState('');
+  const [localMapQuery, setLocalMapQuery] = useState('');
 
   useEffect(() => {
-    const t = setTimeout(() => setSearchTerm(localSearch), 150);
-    return () => clearTimeout(t);
-  }, [localSearch]);
+    setLocalMapQuery(mapQuery);
+  }, [mapQuery]);
 
+  useEffect(() => {
+    const t = window.setTimeout(() => setMapQuery(localMapQuery), 150);
+    return () => window.clearTimeout(t);
+  }, [localMapQuery]);
 
-    return (
-      <div className="p-6 pb-24 max-w-4xl mx-auto">
-        <h1 className="text-3xl font-bold text-[#3D2817] mb-6">Places</h1>
+  const citiesGroup = useMemo((): Array<[string, Place[]]> => {
+    const q = mapQuery.trim().toLowerCase();
 
-        <div className="bg-[#EFEBE7] rounded-2xl p-4 border-2 border-[#E0D7CF] mb-6 space-y-3">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[#9B8B7E]" size={20} />
-            <input
-              type="text"
-              value={localSearch}
-              onChange={(e) => setLocalSearch(e.target.value)}
-              placeholder="Search places..."
-              className="w-full pl-10 pr-4 py-3 border-2 border-[#E0D7CF] rounded-xl focus:border-[#C9A774] focus:outline-none bg-[#FAF8F6] text-[#3D2817]"
-            />
+    const filtered = q
+      ? places.filter((p) => {
+          const haystack = [
+            p.name,
+            p.city,
+            p.neighborhood,
+            p.placeType,
+            p.cuisine,
+            ...(p.tags ?? []),
+          ]
+            .filter(Boolean)
+            .join(' ')
+            .toLowerCase();
 
-          </div>
+          return haystack.includes(q);
+        })
+      : places;
 
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className="w-full flex items-center justify-between p-3 bg-white border-2 border-[#E0D7CF] rounded-xl text-[#3D2817] font-medium hover:border-[#C9A774] transition-all"
-          >
-            <span className="flex items-center gap-2">
-              <Filter size={18} />
-              Filters & Sort
-            </span>
-            <span className="text-xs">{showFilters ? '▼' : '▶'}</span>
-          </button>
+    const groups: Record<string, Place[]> = {};
+    filtered.forEach((place) => {
+      const city = place.city?.trim() ? place.city : 'Unknown';
+      (groups[city] ??= []).push(place);
+    });
 
-          {showFilters && (
-            <div className="space-y-3 pt-3 border-t border-[#E0D7CF]">
-              <select
-                value={filterType}
-                onChange={(e) => setFilterType(e.target.value)}
-                className="w-full p-3 border-2 border-[#E0D7CF] rounded-xl focus:border-[#C9A774] focus:outline-none bg-[#FAF8F6] text-[#3D2817]"
-              >
-                <option value="">All Place Types</option>
-                {PLACE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-              </select>
+    return (Object.entries(groups) as Array<[string, Place[]]>).sort((a, b) =>
+      a[0].localeCompare(b[0])
+    );
+  }, [places, mapQuery]);
 
-              <select
-                value={filterCuisine}
-                onChange={(e) => setFilterCuisine(e.target.value)}
-                className="w-full p-3 border-2 border-[#E0D7CF] rounded-xl focus:border-[#C9A774] focus:outline-none bg-[#FAF8F6] text-[#3D2817]"
-              >
-                <option value="">All Cuisines</option>
-                {CUISINES.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
+  return (
+    <div className="p-6 pb-24 max-w-4xl mx-auto">
+      <h1 className="text-3xl font-bold text-[#3D2817] mb-3">Map</h1>
+      <p className="text-[#6B5847] mb-6 text-sm">
+        Places grouped by city. Tap to open in Google Maps.
+      </p>
 
-              <select
-                value={filterRating}
-                onChange={(e) => setFilterRating(e.target.value)}
-                className="w-full p-3 border-2 border-[#E0D7CF] rounded-xl focus:border-[#C9A774] focus:outline-none bg-[#FAF8F6] text-[#3D2817]"
-              >
-                <option value="">All Ratings</option>
-                <option value="4">4+ Stars</option>
-                <option value="3">3+ Stars</option>
-              </select>
-
-              <button
-                onClick={() => setFilterFavorites(!filterFavorites)}
-                className={`w-full p-3 rounded-xl font-medium transition-all border-2 ${
-                  filterFavorites
-                    ? 'bg-[#D4A574] text-white border-[#D4A574]'
-                    : 'bg-white text-[#3D2817] border-[#E0D7CF] hover:border-[#C9A774]'
-                }`}
-              >
-                <span className="flex items-center justify-center gap-2">
-                  <Star size={18} className={filterFavorites ? 'fill-white' : ''} />
-                  Favorites Only
-                </span>
-              </button>
-
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-                className="w-full p-3 border-2 border-[#E0D7CF] rounded-xl focus:border-[#C9A774] focus:outline-none bg-[#FAF8F6] text-[#3D2817]"
-              >
-                <option value="name">Sort by Name</option>
-                <option value="rating">Sort by Rating</option>
-                <option value="date">Sort by Date Visited</option>
-                <option value="updated">Sort by Last Edited</option>
-              </select>
-            </div>
+      <div className="mb-6">
+        <div className="flex items-center gap-2 bg-white border border-[#E0D7CF] rounded-2xl px-4 py-3">
+          <Search size={18} className="text-[#9B8B7E]" />
+          <input
+            value={localMapQuery}
+            onChange={(e) => setLocalMapQuery(e.target.value)}
+            placeholder="Search by place, city, neighborhood, tag..."
+            className="w-full outline-none text-[#3D2817] placeholder-[#9B8B7E]"
+          />
+          {localMapQuery && (
+            <button
+              onClick={() => setLocalMapQuery('')}
+              className="text-[#9B8B7E] hover:text-[#3D2817] transition"
+              aria-label="Clear search"
+            >
+              <X size={18} />
+            </button>
           )}
         </div>
 
-        <div className="space-y-3">
-          {filteredPlaces.length === 0 ? (
-            <div className="text-center py-12 text-[#6B5847]">
-              <p>No places found</p>
-            </div>
-          ) : (
-            filteredPlaces.map((place) => (
-              <div
-                key={place.id}
-                onClick={() => setSelectedPlace(place)}
-                className="bg-white rounded-2xl p-5 border-2 border-[#E0D7CF] cursor-pointer hover:border-[#C9A774] hover:shadow-md transition-all"
-              >
-                <div className="flex items-start justify-between">
+        {localMapQuery && (
+          <p className="text-xs text-[#9B8B7E] mt-2">
+            Showing results for “{localMapQuery}”
+          </p>
+        )}
+      </div>
+
+      <div className="space-y-6">
+        {citiesGroup.map(([city, cityPlaces]) => (
+          <div key={city} className="bg-[#EFEBE7] rounded-2xl p-5 border border-[#E0D7CF]">
+            <h2 className="text-xl font-bold text-[#3D2817] mb-4 flex items-center gap-2">
+              <MapPin size={20} className="text-[#C9A774]" />
+              {city} ({cityPlaces.length})
+            </h2>
+
+            <div className="space-y-2">
+              {cityPlaces.map((place) => (
+                <div
+                  key={place.id}
+                  className="bg-white rounded-xl p-4 border border-[#E0D7CF] flex items-center justify-between"
+                >
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
-                      <h3 className="text-xl font-bold text-[#3D2817]">{place.name}</h3>
+                      <h3 className="font-semibold text-[#3D2817]">{place.name}</h3>
                       {place.isFavorite && (
-                        <Star size={18} className="fill-[#D4A574] text-[#D4A574]" />
+                        <Star size={14} className="fill-[#D4A574] text-[#D4A574]" />
                       )}
                     </div>
-                    {(place.neighborhood || place.city) && (<p className="text-sm text-[#6B5847] mb-2">
-                      {[place.neighborhood, place.city].filter(Boolean).join(', ')}</p>
-                      )}
-                    <div className="flex flex-wrap gap-2 mb-2">
-                      <span className="inline-block bg-white text-[#3D2817] text-xs px-3 py-1 rounded-full font-medium border border-[#E0D7CF]">
-                        {place.placeType}
-                      </span>
-                      {place.cuisine && (
-                        <span className="inline-block bg-white text-[#3D2817] text-xs px-3 py-1 rounded-full font-medium border border-[#E0D7CF]">
-                          {place.cuisine}
-                        </span>
-                      )}
-                      {place.price && (
-                        <span className="inline-block bg-white text-[#3D2817] text-xs px-3 py-1 rounded-full font-medium border border-[#E0D7CF]">
-                          {place.price}
-                        </span>
-                      )}
-                    </div>
-                    {place.topItem && (
-                      <p className="text-sm text-[#6B5847] italic">"{place.topItem}"</p>
-                    )}
+                    <p className="text-sm text-[#6B5847]">{place.placeType}</p>
+                    <p className="text-xs text-[#9B8B7E]">{place.neighborhood}</p>
                   </div>
-                  {place.rating && (
-                    <div className="flex items-center gap-1 ml-4">
-                      <Star size={16} className="fill-[#D4A574] text-[#D4A574]" />
-                      <span className="font-bold text-[#3D2817]">{place.rating}</span>
-                    </div>
+
+                  {place.mapUrl && (
+                    <a
+                      href={place.mapUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="ml-3 bg-[#3D2817] text-[#FAF8F6] p-3 rounded-xl hover:opacity-90 transition-all"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <ExternalLink size={18} />
+                    </a>
                   )}
                 </div>
-              </div>
-            ))
-          )}
-        </div>
-
-        <Modal
-          isOpen={!!selectedPlace}
-          onClose={() => setSelectedPlace(null)}
-          title={selectedPlace?.name || ''}
-        >
-          {selectedPlace && (
-            <div className="space-y-4">
-             {(selectedPlace.neighborhood || selectedPlace.city) && (
-              <div>
-                <p className="text-sm text-[#C9A774] mb-1">Location</p>
-                <p className="text-[#FAF8F6] font-medium">
-                  {[selectedPlace.neighborhood, selectedPlace.city].filter(Boolean).join(', ')}</p>
-                </div>
-              )}
-              
-              <div>
-                <p className="text-sm text-[#C9A774] mb-1">Type</p>
-                <p className="text-[#FAF8F6] font-medium">{selectedPlace.placeType}</p>
-              </div>
-
-              {selectedPlace.cuisine && (
-                <div>
-                  <p className="text-sm text-[#C9A774] mb-1">Cuisine</p>
-                  <p className="text-[#FAF8F6] font-medium">{selectedPlace.cuisine}</p>
-                </div>
-              )}
-
-              {selectedPlace.topItem && (
-                <div>
-                  <p className="text-sm text-[#C9A774] mb-1">Top Item</p>
-                  <p className="text-[#FAF8F6] font-medium">{selectedPlace.topItem}</p>
-                </div>
-              )}
-
-              {selectedPlace.rating != null && (() => {
-  const rating = selectedPlace.rating;
-  return (
-    <div>
-      <p className="text-sm text-[#C9A774] mb-1">Rating</p>
-      <div className="flex gap-1">
-        {[...Array(5)].map((_, i) => (
-          <Star
-            key={i}
-            size={20}
-            className={
-              i < rating
-                ? 'fill-[#D4A574] stroke-[#D4A574]'
-                : 'stroke-[#6B5847] fill-transparent'
-            }
-            strokeWidth={2}
-          />
+              ))}
+            </div>
+          </div>
         ))}
+
+        {citiesGroup.length === 0 && (
+          <div className="text-center py-12 text-[#6B5847]">
+            <MapPin size={48} className="mx-auto mb-3 text-[#E0D7CF]" />
+            <p>No places logged yet</p>
+          </div>
+        )}
       </div>
     </div>
   );
-})()}
-              {selectedPlace.price && (
-                <div>
-                  <p className="text-sm text-[#C9A774] mb-1">Price</p>
-                  <p className="text-[#FAF8F6] font-medium">{selectedPlace.price}</p>
-                </div>
-              )}
-
-              {selectedPlace.tags && selectedPlace.tags.length > 0 && (
-                <div>
-                  <p className="text-sm text-[#C9A774] mb-2">Tags</p>
-                  <div className="flex flex-wrap gap-2">
-                    {selectedPlace.tags.map(tag => (
-                      <span key={tag} className="bg-[#4A3420] text-[#FAF8F6] text-xs px-3 py-1 rounded-full border border-[#6B5847]">
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {selectedPlace.notes && (
-                <div>
-                  <p className="text-sm text-[#C9A774] mb-1">Notes</p>
-                  <p className="text-[#FAF8F6]">{selectedPlace.notes}</p>
-                </div>
-              )}
-
-              {selectedPlace.dateVisited && (
-                <div>
-                  <p className="text-sm text-[#C9A774] mb-1">Date Visited</p>
-                  <p className="text-[#FAF8F6] font-medium">
-                    {new Date(selectedPlace.dateVisited).toLocaleDateString('en-US', {
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric'
-                    })}
-                  </p>
-                </div>
-              )}
-
-              <div className="pt-4 space-y-2 border-t border-[#6B5847]">
-                {selectedPlace.websiteUrl && (
-                  <a
-                    href={selectedPlace.websiteUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center justify-center gap-2 w-full bg-[#4A3420] text-[#FAF8F6] py-3 rounded-xl font-medium border-2 border-[#6B5847] hover:border-[#C9A774] transition-all"
-                  >
-                    <ExternalLink size={18} />
-                    Visit Website
-                  </a>
-                )}
-
-                {selectedPlace.menuUrl && (
-                  <a
-                    href={selectedPlace.menuUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center justify-center gap-2 w-full bg-[#4A3420] text-[#FAF8F6] py-3 rounded-xl font-medium border-2 border-[#6B5847] hover:border-[#C9A774] transition-all"
-                  >
-                    <Menu size={18} />
-                    View Menu
-                  </a>
-                )}
-
-                {selectedPlace.mapUrl && (
-                  <a
-                    href={selectedPlace.mapUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center justify-center gap-2 w-full bg-[#4A3420] text-[#FAF8F6] py-3 rounded-xl font-medium border-2 border-[#6B5847] hover:border-[#C9A774] transition-all"
-                  >
-                    <MapPin size={18} />
-                    Open in Maps
-                  </a>
-                )}
-
-                <button
-                  onClick={() => {
-                    const index = places.findIndex(p => p.id === selectedPlace.id);
-                    setCurrentIndex(index);
-                    setSelectedPlace(null);
-                    setScreen('enrich');
-                  }}
-                  className="w-full bg-[#C9A774] text-[#3D2817] py-4 rounded-xl font-bold hover:bg-[#D4A574] transition-all shadow-lg"
-                >
-                  Edit Place
-                </button>
-
-                <button
-                  onClick={() => {
-                    if (confirm('Delete this place?')) {
-                      deletePlace(selectedPlace.id);
-                      setSelectedPlace(null);
-                    }
-                  }}
-                  className="w-full bg-[#A85846] text-white py-3 rounded-xl font-medium hover:opacity-90 transition-all"
-                >
-                  Delete Place
-                </button>
-              </div>
-            </div>
-          )}
-        </Modal>
-      </div>
-    );
-  };
-
-  // MAP TAB (simplified list grouped by city)
-  const MapTab = () => {
-    const citiesGroup = useMemo((): Array<[string, Place[]]> => {
-  const groups: Record<string, Place[]> = {};
-
-  places.forEach((place) => {
-    const city = (place.city && place.city.trim()) ? place.city : 'Unknown';
-    (groups[city] ??= []).push(place);
-  });
-
-  return (Object.entries(groups) as Array<[string, Place[]]>).sort((a, b) =>
-    a[0].localeCompare(b[0])
-  );
-}, [places]);
-
-    return (
-      <div className="p-6 pb-24 max-w-4xl mx-auto">
-        <h1 className="text-3xl font-bold text-[#3D2817] mb-3">Map</h1>
-        <p className="text-[#6B5847] mb-6 text-sm">
-          Places grouped by city. Tap to open in Google Maps.
-        </p>
-
-        <div className="space-y-6">
-          {citiesGroup.map(([city, cityPlaces]) => (
-            <div key={city} className="bg-[#EFEBE7] rounded-2xl p-5 border border-[#E0D7CF]">
-              <h2 className="text-xl font-bold text-[#3D2817] mb-4 flex items-center gap-2">
-                <MapPin size={20} className="text-[#C9A774]" />
-                {city} ({cityPlaces.length})
-              </h2>
-              <div className="space-y-2">
-                {cityPlaces.map(place => (
-                  <div
-                    key={place.id}
-                    className="bg-white rounded-xl p-4 border border-[#E0D7CF] flex items-center justify-between"
-                  >
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h3 className="font-semibold text-[#3D2817]">{place.name}</h3>
-                        {place.isFavorite && (
-                          <Star size={14} className="fill-[#D4A574] text-[#D4A574]" />
-                        )}
-                      </div>
-                      <p className="text-sm text-[#6B5847]">{place.placeType}</p>
-                      <p className="text-xs text-[#9B8B7E]">{place.neighborhood}</p>
-                    </div>
-                    {place.mapUrl && (
-                      <a
-                        href={place.mapUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="ml-3 bg-[#3D2817] text-[#FAF8F6] p-3 rounded-xl hover:opacity-90 transition-all"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <ExternalLink size={18} />
-                      </a>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-
-          {citiesGroup.length === 0 && (
-            <div className="text-center py-12 text-[#6B5847]">
-              <MapPin size={48} className="mx-auto mb-3 text-[#E0D7CF]" />
-              <p>No places logged yet</p>
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  };
+};
 
   // WRAPPED TAB (Tinder-style swipe)
 const WrappedTab = () => {
@@ -1772,10 +1775,6 @@ const WrappedTab = () => {
                 <span className="text-[#6B5847]">Favorites:</span>
                 <span className="font-semibold text-[#3D2817]">{places.filter(p => p.isFavorite).length}</span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-[#6B5847]">2025 places:</span>
-                <span className="font-semibold text-[#3D2817]">{wrapped2025.total}</span>
-              </div>
             </div>
           </div>
         </div>
@@ -1796,29 +1795,37 @@ const WrappedTab = () => {
     });
 
     const handleSubmit = () => {
-      if (!newPlace.name || !newPlace.placeType || !newPlace.city || !newPlace.neighborhood) {
-        alert('Please fill in all required fields');
-        return;
-      }
-      addPlace(newPlace);
-      setShowAddModal(false);
-      setNewPlace({
-        name: '',
-        placeType: '',
-        cuisine: '',
-        city: '',
-        neighborhood: '',
-        dateVisited: new Date().toISOString().split('T')[0],
-        mapUrl: ''
-      });
-    };
+  // If user leaves name empty, save with a friendly default
+  const safePlace = {
+    ...newPlace,
+    name: (newPlace.name || '').trim() || 'Untitled place',
+    placeType: (newPlace.placeType || '').trim(),
+    city: (newPlace.city || '').trim(),
+    neighborhood: (newPlace.neighborhood || '').trim(),
+    cuisine: (newPlace.cuisine || '').trim(),
+    mapUrl: (newPlace.mapUrl || '').trim(),
+  };
+
+  addPlace(safePlace);
+  setShowAddModal(false);
+
+  setNewPlace({
+    name: '',
+    placeType: '',
+    cuisine: '',
+    city: '',
+    neighborhood: '',
+    dateVisited: new Date().toISOString().split('T')[0],
+    mapUrl: ''
+  });
+};
 
     return (
       <Modal isOpen={showAddModal} onClose={() => setShowAddModal(false)} title="Add New Place">
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-semibold text-[#FAF8F6] mb-2">
-              Name <span className="text-[#C9A774]">*</span>
+              Name 
             </label>
             <input
               type="text"
@@ -1831,7 +1838,7 @@ const WrappedTab = () => {
 
           <div>
             <label className="block text-sm font-semibold text-[#FAF8F6] mb-2">
-              Place Type <span className="text-[#C9A774]">*</span>
+              Place Type
             </label>
             <select
               value={newPlace.placeType}
@@ -1861,7 +1868,7 @@ const WrappedTab = () => {
 
           <div>
             <label className="block text-sm font-semibold text-[#FAF8F6] mb-2">
-              City <span className="text-[#C9A774]">*</span>
+              City
             </label>
             <input
               type="text"
@@ -1874,7 +1881,7 @@ const WrappedTab = () => {
 
           <div>
             <label className="block text-sm font-semibold text-[#FAF8F6] mb-2">
-              Neighborhood <span className="text-[#C9A774]">*</span>
+              Neighborhood 
             </label>
             <input
               type="text"
@@ -1990,7 +1997,27 @@ const WrappedTab = () => {
     <div className="min-h-screen bg-[#FAF8F6] font-sans antialiased">
       {screen === 'log' && <LogTab />}
       {screen === 'enrich' && <EnrichFlow />}
-      {screen === 'places' && <PlacesTab />}
+      {screen === 'places' && (
+  <PlacesTab
+    filteredPlaces={filteredPlaces}
+    places={places}
+    searchTerm={searchTerm}
+    setSearchTerm={setSearchTerm}
+    filterType={filterType}
+    setFilterType={setFilterType}
+    filterCuisine={filterCuisine}
+    setFilterCuisine={setFilterCuisine}
+    filterRating={filterRating}
+    setFilterRating={setFilterRating}
+    filterFavorites={filterFavorites}
+    setFilterFavorites={setFilterFavorites}
+    sortBy={sortBy}
+    setSortBy={setSortBy}
+    deletePlace={deletePlace}
+    setCurrentIndex={setCurrentIndex}
+    setScreen={setScreen}
+  />
+)}
       {screen === 'map' && <MapTab />}
       {screen === 'wrapped' && <WrappedTab />}
       {screen === 'settings' && <SettingsTab />}
